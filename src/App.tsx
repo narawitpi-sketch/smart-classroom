@@ -17,7 +17,8 @@ import {
   Menu,
   Loader2,
   Lock,
-  Phone
+  Phone,
+  GraduationCap // เพิ่มไอคอนสำหรับแสดงประเภทผู้แจ้ง
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -65,6 +66,7 @@ const db = getFirestore(app);
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
+type ReporterType = 'student' | 'lecturer'; // เพิ่ม Type ใหม่
 
 interface Issue {
   id: string;
@@ -72,6 +74,7 @@ interface Issue {
   category: string;
   description: string;
   reporter: string;
+  reporterType: ReporterType; // เพิ่มฟิลด์ reporterType
   phone: string;
   urgency: Urgency;
   status: Status;
@@ -140,6 +143,7 @@ export default function App() {
     category: 'Visual',
     description: '',
     reporter: '',
+    reporterType: 'student' as ReporterType, // ค่าเริ่มต้นเป็นนักศึกษา
     phone: '',
     urgency: 'medium' as Urgency,
   });
@@ -242,7 +246,15 @@ export default function App() {
       };
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
       setShowForm(false);
-      setFormData({ room: '', category: 'Visual', description: '', reporter: '', phone: '', urgency: 'medium' });
+      setFormData({ 
+        room: '', 
+        category: 'Visual', 
+        description: '', 
+        reporter: '', 
+        reporterType: 'student', 
+        phone: '', 
+        urgency: 'medium' 
+      });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
@@ -368,7 +380,7 @@ export default function App() {
   if (role === 'reporter') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Header: เปลี่ยนจาก absolute เป็น relative ธรรมดา เพื่อไม่ให้ทับเนื้อหา */}
+        {/* Header */}
         <div className="w-full p-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
              <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
@@ -379,7 +391,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Content: จัดให้อยู่กลางพื้นที่ที่เหลือ */}
+        {/* Content */}
         <div className="flex-1 flex flex-col items-center justify-center p-4 w-full">
           <div className="max-w-lg w-full space-y-6 text-center">
             {showSuccess ? (
@@ -432,17 +444,37 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* --- เพิ่มช่องเบอร์โทรศัพท์ --- */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรติดต่อกลับ</label>
-                    <input 
-                        required 
-                        type="tel" 
-                        placeholder="เช่น 0xx-xxx-xxxx" 
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
-                        value={formData.phone} 
-                        onChange={e => setFormData({...formData, phone: e.target.value})} 
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                     {/* --- เพิ่มช่องสถานะผู้แจ้ง --- */}
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
+                        <div className="relative">
+                          <select 
+                            className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00] appearance-none"
+                            value={formData.reporterType}
+                            onChange={e => setFormData({...formData, reporterType: e.target.value as ReporterType})}
+                          >
+                            <option value="student">นักศึกษา</option>
+                            <option value="lecturer">อาจารย์</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                             <GraduationCap size={16} />
+                          </div>
+                        </div>
+                     </div>
+
+                     {/* --- ช่องเบอร์โทรศัพท์ --- */}
+                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
+                      <input 
+                          required 
+                          type="tel" 
+                          placeholder="0xx-xxx-xxxx" 
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                          value={formData.phone} 
+                          onChange={e => setFormData({...formData, phone: e.target.value})} 
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -574,7 +606,12 @@ export default function App() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-gray-900">{issue.room}</div>
-                        <div className="text-xs">{issue.reporter}</div>
+                        <div className="text-xs">
+                           {issue.reporter} 
+                           <span className="text-gray-400 ml-1">
+                             ({issue.reporterType === 'student' ? 'นักศึกษา' : 'อาจารย์'})
+                           </span>
+                        </div>
                         {/* แสดงเบอร์โทร */}
                         {issue.phone && (
                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
