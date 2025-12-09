@@ -324,7 +324,6 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full text-center">
-          {/* เอา rotate-3 ออกแล้วครับ */}
           <div className="bg-[#66FF00] w-20 h-20 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-6 text-black">
             <Monitor size={48} />
           </div>
@@ -365,11 +364,12 @@ export default function App() {
     );
   }
 
-  // --- View: Reporter Form ---
+  // --- View: Reporter Form (Fix Mobile Layout) ---
   if (role === 'reporter') {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 relative">
-        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header: เปลี่ยนจาก absolute เป็น relative ธรรมดา เพื่อไม่ให้ทับเนื้อหา */}
+        <div className="w-full p-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
              <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
              SmartClass
@@ -379,103 +379,106 @@ export default function App() {
           </button>
         </div>
 
-        <div className="max-w-lg w-full space-y-6 text-center">
-          {showSuccess ? (
-            <div className="bg-white rounded-2xl p-12 shadow-xl animate-fade-in-up border-t-4 border-[#66FF00]">
-              <div className="w-24 h-24 bg-[#e6ffcc] text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle size={48} />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">แจ้งปัญหาสำเร็จ!</h2>
-              <p className="text-gray-600 mb-8">ขอบคุณที่แจ้งปัญหาเข้ามา เจ้าหน้าที่จะรีบดำเนินการตรวจสอบโดยเร็วที่สุด</p>
-              <button 
-                onClick={() => setShowSuccess(false)}
-                className="bg-black text-[#66FF00] font-bold px-8 py-3 rounded-xl hover:bg-gray-800 transition"
-              >
-                กลับหน้าหลัก
-              </button>
-            </div>
-          ) : !showForm ? (
-            <div className="space-y-8 animate-fade-in-up">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">พบปัญหาการใช้งานห้องเรียน?</h1>
-                <p className="text-gray-600 text-lg">แจ้งปัญหาได้ทันที โดยไม่ต้องล็อกอินเพื่อตรวจสอบสถานะ</p>
-              </div>
-              <button 
-                onClick={() => setShowForm(true)}
-                className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black text-xl font-bold p-8 rounded-3xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-4 group"
-              >
-                <div className="bg-black/10 p-4 rounded-full group-hover:scale-110 transition-transform">
-                  <Wrench size={40} />
+        {/* Content: จัดให้อยู่กลางพื้นที่ที่เหลือ */}
+        <div className="flex-1 flex flex-col items-center justify-center p-4 w-full">
+          <div className="max-w-lg w-full space-y-6 text-center">
+            {showSuccess ? (
+              <div className="bg-white rounded-2xl p-12 shadow-xl animate-fade-in-up border-t-4 border-[#66FF00]">
+                <div className="w-24 h-24 bg-[#e6ffcc] text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle size={48} />
                 </div>
-                แจ้งปัญหาใหม่
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up text-left border-t-4 border-[#66FF00]">
-              <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">แบบฟอร์มแจ้งปัญหา</h3>
-                <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-black">
-                  <LogOut size={20} />
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">แจ้งปัญหาสำเร็จ!</h2>
+                <p className="text-gray-600 mb-8">ขอบคุณที่แจ้งปัญหาเข้ามา เจ้าหน้าที่จะรีบดำเนินการตรวจสอบโดยเร็วที่สุด</p>
+                <button 
+                  onClick={() => setShowSuccess(false)}
+                  className="bg-black text-[#66FF00] font-bold px-8 py-3 rounded-xl hover:bg-gray-800 transition"
+                >
+                  กลับหน้าหลัก
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
-                    <input required type="text" placeholder="เช่น 942" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
+            ) : !showForm ? (
+              <div className="space-y-8 animate-fade-in-up">
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">พบปัญหาการใช้งานห้องเรียน?</h1>
+                  <p className="text-gray-600 text-lg">แจ้งปัญหาได้ทันที โดยไม่ต้องล็อกอินเพื่อตรวจสอบสถานะ</p>
+                </div>
+                <button 
+                  onClick={() => setShowForm(true)}
+                  className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black text-xl font-bold p-8 rounded-3xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-4 group"
+                >
+                  <div className="bg-black/10 p-4 rounded-full group-hover:scale-110 transition-transform">
+                    <Wrench size={40} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ผู้แจ้ง</label>
-                    <input required type="text" placeholder="ชื่อ-สกุล" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.reporter} onChange={e => setFormData({...formData, reporter: e.target.value})} />
-                  </div>
-                </div>
-
-                {/* --- เพิ่มช่องเบอร์โทรศัพท์ --- */}
-                <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรติดต่อกลับ</label>
-                   <input 
-                      required 
-                      type="tel" 
-                      placeholder="เช่น 0xx-xxx-xxxx" 
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
-                      value={formData.phone} 
-                      onChange={e => setFormData({...formData, phone: e.target.value})} 
-                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {categories.map((cat) => (
-                      <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                        <cat.icon size={20} /> {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
-                  <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" placeholder="อธิบายอาการเสียที่พบ..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
-                  <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
-                    <option value="low">ทั่วไป (รอได้)</option>
-                    <option value="medium">ปานกลาง (ควรแก้ไขภายในวัน)</option>
-                    <option value="high">ด่วนมาก (กระทบการเรียนการสอน)</option>
-                  </select>
-                </div>
-                <div className="pt-2">
-                  <button type="submit" disabled={formSubmitting} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black py-3 rounded-xl font-bold transition shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                    {formSubmitting ? <Loader2 className="animate-spin" /> : 'ยืนยันการแจ้ง'}
+                  แจ้งปัญหาใหม่
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up text-left border-t-4 border-[#66FF00]">
+                <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
+                  <h3 className="font-bold text-lg text-gray-800">แบบฟอร์มแจ้งปัญหา</h3>
+                  <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-black">
+                    <LogOut size={20} />
                   </button>
-                  <button type="button" onClick={() => setShowForm(false)} className="w-full mt-2 text-gray-500 py-2 rounded-xl font-medium hover:bg-gray-100 transition">ยกเลิก</button>
                 </div>
-              </form>
-            </div>
-          )}
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
+                      <input required type="text" placeholder="เช่น 942" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ผู้แจ้ง</label>
+                      <input required type="text" placeholder="ชื่อ-สกุล" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.reporter} onChange={e => setFormData({...formData, reporter: e.target.value})} />
+                    </div>
+                  </div>
+
+                  {/* --- เพิ่มช่องเบอร์โทรศัพท์ --- */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรติดต่อกลับ</label>
+                    <input 
+                        required 
+                        type="tel" 
+                        placeholder="เช่น 0xx-xxx-xxxx" 
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                        value={formData.phone} 
+                        onChange={e => setFormData({...formData, phone: e.target.value})} 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {categories.map((cat) => (
+                        <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                          <cat.icon size={20} /> {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
+                    <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" placeholder="อธิบายอาการเสียที่พบ..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
+                    <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
+                      <option value="low">ทั่วไป (รอได้)</option>
+                      <option value="medium">ปานกลาง (ควรแก้ไขภายในวัน)</option>
+                      <option value="high">ด่วนมาก (กระทบการเรียนการสอน)</option>
+                    </select>
+                  </div>
+                  <div className="pt-2">
+                    <button type="submit" disabled={formSubmitting} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black py-3 rounded-xl font-bold transition shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                      {formSubmitting ? <Loader2 className="animate-spin" /> : 'ยืนยันการแจ้ง'}
+                    </button>
+                    <button type="button" onClick={() => setShowForm(false)} className="w-full mt-2 text-gray-500 py-2 rounded-xl font-medium hover:bg-gray-100 transition">ยกเลิก</button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+          <div className="mt-8 text-gray-400 text-sm">© 2025 Smart Classroom System</div>
         </div>
-        <div className="absolute bottom-6 text-gray-400 text-sm">© 2025 Smart Classroom System</div>
       </div>
     );
   }
