@@ -20,11 +20,11 @@ import {
   Phone,
   GraduationCap,
   X,
-  Trash2, // ไอคอนถังขยะ
-  Plus, // ไอคอนบวก
-  BarChart3, // ไอคอนกราฟ
-  LayoutGrid, // ไอคอน Dashboard
-  FileText // ไอคอนรายการเอกสาร
+  Trash2,
+  Plus,
+  BarChart3,
+  LayoutGrid,
+  FileText
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -43,7 +43,7 @@ import {
   collection, 
   addDoc, 
   updateDoc, 
-  deleteDoc, // เพิ่มฟังก์ชันลบเอกสาร
+  deleteDoc,
   doc, 
   onSnapshot
 } from 'firebase/firestore';
@@ -78,7 +78,7 @@ type Role = 'guest' | 'reporter' | 'staff' | 'login_admin';
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms'; // เพิ่ม Tab สำหรับ Admin
+type AdminTab = 'dashboard' | 'issues' | 'rooms';
 
 interface Issue {
   id: string;
@@ -137,8 +137,6 @@ const StatusBadge = ({ status }: { status: Status }) => {
   return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
 };
 
-// --- Simple Bar Chart Component ---
-// คอมโพเนนต์กราฟแท่งแบบง่าย (CSS-based)
 const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label: string, value: number }[], title: string, color?: string }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
@@ -189,7 +187,7 @@ export default function App() {
 
   const [role, setRole] = useState<Role>('guest');
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]); // เก็บข้อมูลห้องเรียน
+  const [rooms, setRooms] = useState<Room[]>([]); 
   const [loadingData, setLoadingData] = useState(false);
   
   // Admin UI State
@@ -218,16 +216,14 @@ export default function App() {
 
     setLoadingData(true);
 
-    // 1. Fetch Issues
     const qIssues = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
     const unsubIssues = onSnapshot(qIssues, (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })) as Issue[];
       fetched.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
       setIssues(fetched);
-      setLoadingData(false);
+      setLoadingData(false); // ✅ ใช้ setLoadingData เพื่อลบ error TS6133
     });
 
-    // 2. Fetch Rooms (สำหรับ Dropdown และหน้าจัดการห้อง)
     const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
     const unsubRooms = onSnapshot(qRooms, (snapshot) => {
       const fetchedRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
@@ -256,7 +252,6 @@ export default function App() {
     } catch (error) { console.error("Logout error:", error); }
   };
 
-  // ลบข้อมูลการแจ้งซ่อม
   const handleDeleteIssue = async (docId: string) => {
     fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้? การกระทำนี้ไม่สามารถย้อนกลับได้', 'warning', async () => {
       try {
@@ -265,7 +260,6 @@ export default function App() {
     }, true);
   };
 
-  // เพิ่มห้องเรียน
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
@@ -276,7 +270,6 @@ export default function App() {
     } catch (error) { fireAlert('ผิดพลาด', 'ไม่สามารถเพิ่มห้องได้', 'error'); }
   };
 
-  // ลบห้องเรียน
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่?`, 'warning', async () => {
       try {
@@ -285,7 +278,7 @@ export default function App() {
     }, true);
   };
 
-  // --- Stats Calculation Logic (Dashboard) ---
+  // --- Stats Calculation Logic ---
   const statsData = useMemo(() => {
     const stats = {
       daily: {} as Record<string, number>,
@@ -313,11 +306,8 @@ export default function App() {
 
     const formatForChart = (obj: Record<string, number>) => Object.entries(obj).map(([label, value]) => ({ label, value }));
 
-    // เรียงลำดับกราฟรายวัน (เอา 7 วันล่าสุด)
-    const sortedDaily = formatForChart(stats.daily).sort((a,b) => {
-       // เรียงตามลำดับที่มา (อาจต้องปรับปรุงถ้าวันที่สลับกัน) แต่โดยทั่วไป firebase ส่งมาเรียงอยู่แล้วถ้าเรา sort issues
-       return 0; 
-    }).slice(0, 7);
+    // ✅ แก้ไข: ลบตัวแปร a, b ที่ไม่ได้ใช้ออก โดยใช้การ slice ข้อมูลตรงๆ แทนการ sort ที่ return 0
+    const sortedDaily = formatForChart(stats.daily).slice(0, 7);
 
     return {
       daily: sortedDaily,
@@ -449,7 +439,6 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
-                        {/* --- เปลี่ยนจาก Input เป็น Select --- */}
                         <select 
                           required 
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none bg-white"
@@ -483,7 +472,7 @@ export default function App() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
                       <div className="grid grid-cols-3 gap-2">
-                        {[{ id: 'Visual', icon: Monitor, label: 'ภาพ' }, { id: 'Audio', icon: Speaker, label: 'เสียง' }, { id: 'Network', icon: Wifi, label: 'เน็ต' }, { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ' }, { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' }].map((cat) => (
+                        {categories.map((cat) => (
                           <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                             <cat.icon size={20} /> {cat.label}
                           </button>
@@ -531,7 +520,8 @@ export default function App() {
           </aside>
 
           <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-            {/* --- TAB: Dashboard --- */}
+            
+            {/* --- TAB 1: Dashboard (Graphs & Stats) --- */}
             {adminTab === 'dashboard' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BarChart3 /> สรุปสถิติการแจ้งซ่อม</h1>
@@ -545,7 +535,7 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Issues (With Filter & Delete) --- */}
+            {/* --- TAB 2: Issues (Manage Issues + Delete) --- */}
             {adminTab === 'issues' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -554,9 +544,7 @@ export default function App() {
                   <div className="flex gap-2 text-sm">
                     <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
                       <option value="all">ทุกประเภทปัญหา</option>
-                      <option value="Visual">ภาพ/โปรเจคเตอร์</option>
-                      <option value="Audio">เสียง</option>
-                      <option value="Network">อินเทอร์เน็ต</option>
+                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                     </select>
                     <select className="border rounded-lg px-3 py-2 bg-white" value={filterReporterType} onChange={e => setFilterReporterType(e.target.value)}>
                       <option value="all">ผู้แจ้งทุกคน</option>
@@ -600,7 +588,7 @@ export default function App() {
                                <div className="flex justify-end gap-2">
                                 {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded tooltip" title="รับงาน"><Wrench size={16} /></button>}
                                 {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded" title="ปิดงาน"><CheckCircle size={16} /></button>}
-                                {/* ปุ่มลบ (ถังขยะ) */}
+                                {/* ปุ่มลบ (ถังขยะ) สำหรับลบข้อมูลขยะ */}
                                 <button onClick={() => handleDeleteIssue(issue.docId!)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded" title="ลบรายการ"><Trash2 size={16} /></button>
                                </div>
                             </td>
@@ -613,7 +601,7 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Rooms (Manage Rooms) --- */}
+            {/* --- TAB 3: Rooms (Manage Rooms) --- */}
             {adminTab === 'rooms' && (
               <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
