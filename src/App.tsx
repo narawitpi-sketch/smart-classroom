@@ -5,8 +5,6 @@ import {
   Speaker, 
   Thermometer, 
   AlertCircle,
-  Search,
-  Filter,
   Wrench,
   User as UserIcon,
   LogOut,
@@ -14,7 +12,6 @@ import {
   CheckCircle,
   ArrowRight,
   Clock,
-  Menu,
   Loader2,
   Lock,
   Phone,
@@ -137,6 +134,7 @@ const StatusBadge = ({ status }: { status: Status }) => {
   return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
 };
 
+// --- Simple Bar Chart Component ---
 const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label: string, value: number }[], title: string, color?: string }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
@@ -188,7 +186,6 @@ export default function App() {
   const [role, setRole] = useState<Role>('guest');
   const [issues, setIssues] = useState<Issue[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]); 
-  const [loadingData, setLoadingData] = useState(false);
   
   // Admin UI State
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
@@ -214,14 +211,11 @@ export default function App() {
     if (!user) return;
     if (role === 'guest') return;
 
-    setLoadingData(true);
-
     const qIssues = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
     const unsubIssues = onSnapshot(qIssues, (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })) as Issue[];
       fetched.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
       setIssues(fetched);
-      setLoadingData(false); // ✅ ใช้ setLoadingData เพื่อลบ error TS6133
     });
 
     const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
@@ -306,7 +300,6 @@ export default function App() {
 
     const formatForChart = (obj: Record<string, number>) => Object.entries(obj).map(([label, value]) => ({ label, value }));
 
-    // ✅ แก้ไข: ลบตัวแปร a, b ที่ไม่ได้ใช้ออก โดยใช้การ slice ข้อมูลตรงๆ แทนการ sort ที่ return 0
     const sortedDaily = formatForChart(stats.daily).slice(0, 7);
 
     return {
@@ -520,8 +513,7 @@ export default function App() {
           </aside>
 
           <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-            
-            {/* --- TAB 1: Dashboard (Graphs & Stats) --- */}
+            {/* --- TAB: Dashboard --- */}
             {adminTab === 'dashboard' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BarChart3 /> สรุปสถิติการแจ้งซ่อม</h1>
@@ -535,7 +527,7 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB 2: Issues (Manage Issues + Delete) --- */}
+            {/* --- TAB: Issues (With Filter & Delete) --- */}
             {adminTab === 'issues' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -588,12 +580,13 @@ export default function App() {
                                <div className="flex justify-end gap-2">
                                 {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded tooltip" title="รับงาน"><Wrench size={16} /></button>}
                                 {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded" title="ปิดงาน"><CheckCircle size={16} /></button>}
-                                {/* ปุ่มลบ (ถังขยะ) สำหรับลบข้อมูลขยะ */}
+                                {/* ปุ่มลบ (ถังขยะ) */}
                                 <button onClick={() => handleDeleteIssue(issue.docId!)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded" title="ลบรายการ"><Trash2 size={16} /></button>
                                </div>
                             </td>
                           </tr>
                         ))}
+                        {issues.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">ยังไม่มีข้อมูล</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -601,7 +594,7 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB 3: Rooms (Manage Rooms) --- */}
+            {/* --- TAB: Rooms (Manage Rooms) --- */}
             {adminTab === 'rooms' && (
               <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
