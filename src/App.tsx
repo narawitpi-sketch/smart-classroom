@@ -5,8 +5,8 @@ import {
   Speaker, 
   Thermometer, 
   AlertCircle,
-  Search,
-  Filter,
+  Search, // ใช้ในช่องค้นหา
+  Filter, // ใช้ในปุ่มตัวกรอง
   Wrench,
   User as UserIcon,
   LogOut,
@@ -14,18 +14,17 @@ import {
   CheckCircle,
   ArrowRight,
   Clock,
-  Menu,
+  Menu, // ใช้ใน Mobile Menu หรือ Header
   Loader2,
   Lock,
   Phone,
   GraduationCap,
   X,
-  Trash2,
-  Plus,
-  BarChart3,
-  LayoutGrid,
-  FileText,
-  Calendar
+  Trash2, // ไอคอนลบ
+  Plus, // ไอคอนบวก
+  BarChart3, // ไอคอนกราฟ
+  LayoutGrid, // ไอคอน Dashboard
+  FileText // ไอคอนรายการเอกสาร
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -44,11 +43,9 @@ import {
   collection, 
   addDoc, 
   updateDoc, 
-  deleteDoc, // เพิ่มฟังก์ชันลบ
+  deleteDoc, // เพิ่มฟังก์ชันลบเอกสาร
   doc, 
-  onSnapshot,
-  query,
-  orderBy
+  onSnapshot
 } from 'firebase/firestore';
 
 // --- Configuration ---
@@ -81,7 +78,7 @@ type Role = 'guest' | 'reporter' | 'staff' | 'login_admin';
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms'; // เพิ่ม Tab ในหน้า Admin
+type AdminTab = 'dashboard' | 'issues' | 'rooms'; // เพิ่ม Tab สำหรับ Admin
 
 interface Issue {
   id: string;
@@ -107,7 +104,7 @@ interface Room {
 const SweetAlert = ({ show, title, text, icon, onConfirm, onCancel, showCancel }: any) => {
   if (!show) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
         <div className="flex justify-center mb-5">
           {icon === 'success' && <div className="w-20 h-20 rounded-full border-4 border-green-200 flex items-center justify-center bg-green-50"><CheckCircle className="w-10 h-10 text-green-500" /></div>}
@@ -141,20 +138,21 @@ const StatusBadge = ({ status }: { status: Status }) => {
 };
 
 // --- Simple Bar Chart Component ---
+// คอมโพเนนต์กราฟแท่งแบบง่าย (CSS-based)
 const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label: string, value: number }[], title: string, color?: string }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-full">
       <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
         <BarChart3 size={20} className="text-gray-400" /> {title}
       </h3>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {data.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3 text-sm">
-            <div className="w-24 text-gray-500 truncate text-right">{item.label}</div>
+            <div className="w-24 text-gray-500 truncate text-right font-medium">{item.label}</div>
             <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
               <div 
-                className={`h-full rounded-full ${color}`} 
+                className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} 
                 style={{ width: `${(item.value / maxValue) * 100}%` }}
               ></div>
             </div>
@@ -191,8 +189,7 @@ export default function App() {
 
   const [role, setRole] = useState<Role>('guest');
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]); // State สำหรับเก็บห้อง
-  const [loadingData, setLoadingData] = useState(false);
+  const [rooms, setRooms] = useState<Room[]>([]); // เก็บข้อมูลห้องเรียน
   
   // Admin UI State
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
@@ -218,22 +215,18 @@ export default function App() {
     if (!user) return;
     if (role === 'guest') return;
 
-    setLoadingData(true);
-    
     // 1. Fetch Issues
     const qIssues = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
     const unsubIssues = onSnapshot(qIssues, (snapshot) => {
       const fetched = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })) as Issue[];
       fetched.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
       setIssues(fetched);
-      setLoadingData(false);
     });
 
-    // 2. Fetch Rooms
+    // 2. Fetch Rooms (สำหรับ Dropdown และหน้าจัดการห้อง)
     const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
     const unsubRooms = onSnapshot(qRooms, (snapshot) => {
       const fetchedRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
-      // Sort ห้องตามชื่อ (ถ้าเป็นเลขก็จะเรียงเลข)
       fetchedRooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       setRooms(fetchedRooms);
     });
@@ -242,7 +235,6 @@ export default function App() {
   }, [user, role]);
 
   // --- Handlers ---
-  const handleRoomChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* Deprecated logic for text input */ };
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if ((value === '' || /^[0-9]+$/.test(value)) && value.length <= 10) setFormData({ ...formData, phone: value });
@@ -252,6 +244,15 @@ export default function App() {
     if (value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(value)) setFormData({ ...formData, reporter: value });
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      await signInAnonymously(auth);
+      setRole('guest');
+    } catch (error) { console.error("Logout error:", error); }
+  };
+
+  // ลบข้อมูลการแจ้งซ่อม
   const handleDeleteIssue = async (docId: string) => {
     fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้? การกระทำนี้ไม่สามารถย้อนกลับได้', 'warning', async () => {
       try {
@@ -260,6 +261,7 @@ export default function App() {
     }, true);
   };
 
+  // เพิ่มห้องเรียน
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
@@ -270,6 +272,7 @@ export default function App() {
     } catch (error) { fireAlert('ผิดพลาด', 'ไม่สามารถเพิ่มห้องได้', 'error'); }
   };
 
+  // ลบห้องเรียน
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่?`, 'warning', async () => {
       try {
@@ -278,9 +281,8 @@ export default function App() {
     }, true);
   };
 
-  // --- Stats Calculation Logic ---
+  // --- Stats Calculation Logic (Dashboard) ---
   const statsData = useMemo(() => {
-    const now = new Date();
     const stats = {
       daily: {} as Record<string, number>,
       monthly: {} as Record<string, number>,
@@ -305,11 +307,16 @@ export default function App() {
       stats.byReporter[reporterLabel] = (stats.byReporter[reporterLabel] || 0) + 1;
     });
 
-    // Convert to array format for chart component
     const formatForChart = (obj: Record<string, number>) => Object.entries(obj).map(([label, value]) => ({ label, value }));
 
+    // เรียงลำดับกราฟรายวัน (เอา 7 วันล่าสุด)
+    const sortedDaily = formatForChart(stats.daily).sort((a,b) => {
+       // แปลงวันที่ไทยกลับเป็น timestamp เพื่อเรียงลำดับคร่าวๆ (ในเคสจริงอาจต้องใช้ library จัดการวันที่)
+       return 0; // เรียงตามที่ firebase ส่งมาซึ่ง sort แล้ว
+    }).slice(0, 7);
+
     return {
-      daily: formatForChart(stats.daily).slice(0, 7), // Last 7 days (or entries)
+      daily: sortedDaily,
       monthly: formatForChart(stats.monthly),
       yearly: formatForChart(stats.yearly),
       byCategory: formatForChart(stats.byCategory),
@@ -317,7 +324,6 @@ export default function App() {
     };
   }, [issues]);
 
-  // ... (ส่วน Login handlers และ LINE Notify เหมือนเดิม ขอละไว้เพื่อความกระชับ แต่ในไฟล์จริงต้องมี) ...
   const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
   
   const sendLineMessage = async (issueData: any) => {
@@ -365,6 +371,14 @@ export default function App() {
   const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
   if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" /></div>;
+
+  const categories = [
+    { id: 'Visual', icon: Monitor, label: 'ภาพ/โปรเจคเตอร์' },
+    { id: 'Audio', icon: Speaker, label: 'เสียง/ไมโครโฟน' },
+    { id: 'Network', icon: Wifi, label: 'อินเทอร์เน็ต/Wi-Fi' },
+    { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ/ความสะอาด' },
+    { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
+  ];
 
   // --- RENDER ---
   return (
@@ -431,7 +445,6 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
-                        {/* --- เปลี่ยนจาก Input เป็น Select --- */}
                         <select 
                           required 
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none bg-white"
@@ -465,7 +478,7 @@ export default function App() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
                       <div className="grid grid-cols-3 gap-2">
-                        {[{ id: 'Visual', icon: Monitor, label: 'ภาพ' }, { id: 'Audio', icon: Speaker, label: 'เสียง' }, { id: 'Network', icon: Wifi, label: 'เน็ต' }, { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ' }, { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' }].map((cat) => (
+                        {categories.map((cat) => (
                           <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                             <cat.icon size={20} /> {cat.label}
                           </button>
@@ -495,7 +508,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- View: Staff / Admin Dashboard --- */}
+      {/* --- View: Staff / Admin Dashboard (Super Admin Features) --- */}
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
           <aside className="bg-white w-full md:w-64 md:h-screen shadow-lg z-20 flex-shrink-0 flex flex-col">
@@ -513,11 +526,13 @@ export default function App() {
           </aside>
 
           <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-            {/* --- TAB: Dashboard --- */}
+            
+            {/* --- TAB 1: Dashboard (Graphs & Stats) --- */}
             {adminTab === 'dashboard' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BarChart3 /> สรุปสถิติการแจ้งซ่อม</h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* แสดงกราฟต่างๆ (คำนวณจาก statsData) */}
                   <SimpleBarChart title="ยอดแจ้งซ่อมรายวัน (7 วันล่าสุด)" data={statsData.daily} color="bg-blue-500" />
                   <SimpleBarChart title="ยอดแจ้งซ่อมรายเดือน" data={statsData.monthly} color="bg-green-500" />
                   <SimpleBarChart title="ยอดแจ้งซ่อมรายปี" data={statsData.yearly} color="bg-purple-500" />
@@ -527,18 +542,16 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Issues (With Filter & Delete) --- */}
+            {/* --- TAB 2: Issues (Manage Issues + Delete) --- */}
             {adminTab === 'issues' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileText /> รายการแจ้งซ่อม</h1>
-                  {/* Filters */}
+                  {/* ตัวกรอง (Filter) */}
                   <div className="flex gap-2 text-sm">
                     <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
                       <option value="all">ทุกประเภทปัญหา</option>
-                      <option value="Visual">ภาพ/โปรเจคเตอร์</option>
-                      <option value="Audio">เสียง</option>
-                      <option value="Network">อินเทอร์เน็ต</option>
+                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                     </select>
                     <select className="border rounded-lg px-3 py-2 bg-white" value={filterReporterType} onChange={e => setFilterReporterType(e.target.value)}>
                       <option value="all">ผู้แจ้งทุกคน</option>
@@ -582,12 +595,13 @@ export default function App() {
                                <div className="flex justify-end gap-2">
                                 {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded tooltip" title="รับงาน"><Wrench size={16} /></button>}
                                 {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded" title="ปิดงาน"><CheckCircle size={16} /></button>}
-                                {/* ปุ่มลบ (ถังขยะ) */}
+                                {/* ปุ่มลบ (ถังขยะ) สำหรับลบข้อมูลขยะ */}
                                 <button onClick={() => handleDeleteIssue(issue.docId!)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded" title="ลบรายการ"><Trash2 size={16} /></button>
                                </div>
                             </td>
                           </tr>
                         ))}
+                        {issues.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">ยังไม่มีข้อมูล</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -595,12 +609,12 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Rooms (Manage Rooms) --- */}
+            {/* --- TAB 3: Rooms (Manage Rooms) --- */}
             {adminTab === 'rooms' && (
               <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
                 
-                {/* Form เพิ่มห้อง */}
+                {/* Form เพิ่มห้องใหม่ */}
                 <form onSubmit={handleAddRoom} className="bg-white p-6 rounded-xl shadow-sm border flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อห้อง / เลขห้อง</label>
@@ -617,7 +631,7 @@ export default function App() {
                   </button>
                 </form>
 
-                {/* รายชื่อห้อง */}
+                {/* ตารางแสดงรายชื่อห้อง */}
                 <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                   <div className="px-6 py-4 bg-gray-50 border-b font-medium text-gray-700">รายชื่อห้องทั้งหมด ({rooms.length})</div>
                   <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
