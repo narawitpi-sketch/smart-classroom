@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Monitor, 
   Wifi, 
   Speaker, 
   Thermometer, 
   AlertCircle,
-  Search, // ใช้ในช่องค้นหา
-  Filter, // ใช้ในปุ่มตัวกรอง
+  Search,
+  Filter,
   Wrench,
   User as UserIcon,
   LogOut,
@@ -14,17 +14,12 @@ import {
   CheckCircle,
   ArrowRight,
   Clock,
-  Menu, // ใช้ใน Mobile Menu หรือ Header
+  Menu,
   Loader2,
   Lock,
   Phone,
   GraduationCap,
-  X,
-  Trash2, // ไอคอนลบ
-  Plus, // ไอคอนบวก
-  BarChart3, // ไอคอนกราฟ
-  LayoutGrid, // ไอคอน Dashboard
-  FileText // ไอคอนรายการเอกสาร
+  X 
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -43,7 +38,6 @@ import {
   collection, 
   addDoc, 
   updateDoc, 
-  deleteDoc, // เพิ่มฟังก์ชันลบเอกสาร
   doc, 
   onSnapshot
 } from 'firebase/firestore';
@@ -67,6 +61,7 @@ const ALLOWED_ADMIN_EMAILS = [
 
 // --- 🔵 ตั้งค่า LINE Messaging API ---
 const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
+// แก้ไขชื่อตัวแปรให้เป็นมาตรฐาน (UpperCase)
 const LINE_GROUP_ID = "C8d92d6c426766edb968dabcb780d4c39"; 
 
 const app = initializeApp(firebaseConfig);
@@ -78,7 +73,6 @@ type Role = 'guest' | 'reporter' | 'staff' | 'login_admin';
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms'; // เพิ่ม Tab สำหรับ Admin
 
 interface Issue {
   id: string;
@@ -94,74 +88,85 @@ interface Issue {
   docId?: string;
 }
 
-interface Room {
-  id: string;
-  name: string;
+// --- ✨ Custom SweetAlert Component (Standard Tailwind) ---
+interface SweetAlertProps {
+  show: boolean;
+  title: string;
+  text: string;
+  icon: 'success' | 'error' | 'warning';
+  onConfirm: () => void;
 }
 
-// --- ✨ Custom Components ---
-
-const SweetAlert = ({ show, title, text, icon, onConfirm, onCancel, showCancel }: any) => {
+const SweetAlert = ({ show, title, text, icon, onConfirm }: SweetAlertProps) => {
   if (!show) return null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
+        {/* Icon Area */}
         <div className="flex justify-center mb-5">
-          {icon === 'success' && <div className="w-20 h-20 rounded-full border-4 border-green-200 flex items-center justify-center bg-green-50"><CheckCircle className="w-10 h-10 text-green-500" /></div>}
-          {icon === 'error' && <div className="w-20 h-20 rounded-full border-4 border-red-200 flex items-center justify-center bg-red-50"><X className="w-10 h-10 text-red-500" /></div>}
-          {icon === 'warning' && <div className="w-20 h-20 rounded-full border-4 border-orange-200 flex items-center justify-center bg-orange-50"><AlertCircle className="w-10 h-10 text-orange-500" /></div>}
+          {icon === 'success' && (
+            <div className="w-20 h-20 rounded-full border-4 border-green-200 flex items-center justify-center bg-green-50">
+              <CheckCircle className="w-10 h-10 text-green-500" />
+            </div>
+          )}
+          {icon === 'error' && (
+            <div className="w-20 h-20 rounded-full border-4 border-red-200 flex items-center justify-center bg-red-50">
+              <X className="w-10 h-10 text-red-500" />
+            </div>
+          )}
+          {icon === 'warning' && (
+            <div className="w-20 h-20 rounded-full border-4 border-orange-200 flex items-center justify-center bg-orange-50">
+              <AlertCircle className="w-10 h-10 text-orange-500" />
+            </div>
+          )}
         </div>
+
+        {/* Content */}
         <h3 className="text-2xl font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-gray-600 mb-6">{text}</p>
-        <div className="flex gap-2">
-          {showCancel && (
-            <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>
-          )}
-          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>
-            ตกลง
-          </button>
-        </div>
+
+        {/* Button */}
+        <button
+          onClick={onConfirm}
+          className={`w-full py-3 rounded-xl font-bold text-lg shadow-lg hover:opacity-90 transition-opacity ${
+            icon === 'success' ? 'bg-green-500 text-white shadow-green-200' :
+            icon === 'error' ? 'bg-red-500 text-white shadow-red-200' :
+            'bg-[#66FF00] text-black shadow-[#ccffaa]'
+          }`}
+        >
+          ตกลง
+        </button>
       </div>
     </div>
   );
 };
 
+// --- Components ---
 const StatusBadge = ({ status }: { status: Status }) => {
   const styles = {
     pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     'in-progress': 'bg-[#66FF00]/20 text-green-900 border-[#66FF00]',
     completed: 'bg-gray-100 text-gray-800 border-gray-200',
   };
-  const labels = { pending: 'รอตรวจสอบ', 'in-progress': 'กำลังแก้ไข', completed: 'แก้ไขแล้ว' };
-  const icons = { pending: <Clock size={14} className="mr-1" />, 'in-progress': <Wrench size={14} className="mr-1" />, completed: <CheckCircle size={14} className="mr-1" /> };
-  return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
-};
 
-// --- Simple Bar Chart Component ---
-// คอมโพเนนต์กราฟแท่งแบบง่าย (CSS-based)
-const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label: string, value: number }[], title: string, color?: string }) => {
-  const maxValue = Math.max(...data.map(d => d.value), 1);
+  const labels = {
+    pending: 'รอตรวจสอบ',
+    'in-progress': 'กำลังแก้ไข',
+    completed: 'แก้ไขแล้ว',
+  };
+
+  const icons = {
+    pending: <Clock size={14} className="mr-1" />,
+    'in-progress': <Wrench size={14} className="mr-1" />,
+    completed: <CheckCircle size={14} className="mr-1" />,
+  };
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-full">
-      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-        <BarChart3 size={20} className="text-gray-400" /> {title}
-      </h3>
-      <div className="space-y-4">
-        {data.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-3 text-sm">
-            <div className="w-24 text-gray-500 truncate text-right font-medium">{item.label}</div>
-            <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} 
-                style={{ width: `${(item.value / maxValue) * 100}%` }}
-              ></div>
-            </div>
-            <div className="w-8 text-right font-bold text-gray-700">{item.value}</div>
-          </div>
-        ))}
-        {data.length === 0 && <div className="text-center text-gray-400 py-4">ไม่มีข้อมูล</div>}
-      </div>
-    </div>
+    <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>
+      {icons[status]}
+      {labels[status]}
+    </span>
   );
 };
 
@@ -171,35 +176,49 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- Alert State ---
-  const [alertConfig, setAlertConfig] = useState<any>({ show: false, title: '', text: '', icon: 'success', onConfirm: () => {}, showCancel: false });
-  const fireAlert = (title: string, text: string, icon: 'success' | 'error' | 'warning', onConfirm?: () => void, showCancel = false) => {
+  const [alertConfig, setAlertConfig] = useState<SweetAlertProps>({
+    show: false,
+    title: '',
+    text: '',
+    icon: 'success',
+    onConfirm: () => {}
+  });
+
+  const fireAlert = (title: string, text: string, icon: 'success' | 'error' | 'warning', callback?: () => void) => {
     setAlertConfig({
-      show: true, title, text, icon, showCancel,
-      onConfirm: () => { setAlertConfig((prev: any) => ({ ...prev, show: false })); if (onConfirm) onConfirm(); },
-      onCancel: () => setAlertConfig((prev: any) => ({ ...prev, show: false }))
+      show: true,
+      title,
+      text,
+      icon,
+      onConfirm: () => {
+        setAlertConfig(prev => ({ ...prev, show: false }));
+        if (callback) callback();
+      }
     });
   };
 
   useEffect(() => {
-    const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth).catch(console.error); };
+    const initAuth = async () => {
+       if (!auth.currentUser) {
+          await signInAnonymously(auth).catch(console.error);
+       }
+    };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoadingAuth(false); });
+    
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoadingAuth(false);
+    });
     return () => unsubscribe();
   }, []);
 
   const [role, setRole] = useState<Role>('guest');
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]); // เก็บข้อมูลห้องเรียน
-  
-  // Admin UI State
-  const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterReporterType, setFilterReporterType] = useState<string>('all');
-  const [newRoomName, setNewRoomName] = useState('');
-
-  // User UI State
+  const [loadingData, setLoadingData] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  // ลบ showSuccess และ setShowSuccess ที่ไม่ได้ใช้ออก
   const [formSubmitting, setFormSubmitting] = useState(false);
+  
   const [formData, setFormData] = useState({
     room: '',
     category: 'Visual',
@@ -210,38 +229,106 @@ export default function App() {
     urgency: 'medium' as Urgency,
   });
 
-  // --- Data Fetching ---
-  useEffect(() => {
-    if (!user) return;
-    if (role === 'guest') return;
+  // --- Input Validation ---
+  const handleRoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^[0-9]+$/.test(value)) {
+      setFormData({ ...formData, room: value });
+    }
+  };
 
-    // 1. Fetch Issues
-    const qIssues = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
-    const unsubIssues = onSnapshot(qIssues, (snapshot) => {
-      const fetched = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })) as Issue[];
-      fetched.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-      setIssues(fetched);
-    });
-
-    // 2. Fetch Rooms (สำหรับ Dropdown และหน้าจัดการห้อง)
-    const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
-    const unsubRooms = onSnapshot(qRooms, (snapshot) => {
-      const fetchedRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
-      fetchedRooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      setRooms(fetchedRooms);
-    });
-
-    return () => { unsubIssues(); unsubRooms(); };
-  }, [user, role]);
-
-  // --- Handlers ---
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if ((value === '' || /^[0-9]+$/.test(value)) && value.length <= 10) setFormData({ ...formData, phone: value });
+    if ((value === '' || /^[0-9]+$/.test(value)) && value.length <= 10) {
+      setFormData({ ...formData, phone: value });
+    }
   };
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(value)) setFormData({ ...formData, reporter: value });
+    if (value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(value)) {
+      setFormData({ ...formData, reporter: value });
+    }
+  };
+
+  const getReporterLabel = (type: ReporterType) => {
+    switch(type) {
+      case 'lecturer': return 'อาจารย์';
+      case 'student': return 'นักศึกษา';
+      case 'other': return 'อื่น ๆ';
+      default: return type;
+    }
+  };
+
+  const sendLineMessage = async (issueData: any) => {
+    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
+      return;
+    }
+
+    const messageText = `
+🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})
+--------------------
+📍 *ห้อง:* ${issueData.room}
+👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})
+📞 *เบอร์:* ${issueData.phone}
+⚠️ *ความเร่งด่วน:* ${
+      issueData.urgency === 'high' ? '🔴 ด่วนมาก' : 
+      issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'
+    }
+🛠 *ปัญหา:* ${issueData.category}
+📝 *รายละเอียด:* ${issueData.description}
+--------------------
+ตรวจสอบ: https://smart-classroom-neon.vercel.app/
+`;
+
+    try {
+      await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: LINE_GROUP_ID,
+          messages: [{ type: "text", text: messageText.trim() }]
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to send LINE message:", error);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    // ลบ setLoginError(''); ออกเพราะเราใช้ Alert แทนแล้ว
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const userEmail = result.user.email;
+
+      if (userEmail && ALLOWED_ADMIN_EMAILS.includes(userEmail)) {
+        setRole('staff'); 
+      } else {
+        await signOut(auth);
+        fireAlert('เข้าสู่ระบบไม่สำเร็จ', `อีเมล ${userEmail} ไม่มีสิทธิ์เข้าถึงระบบนี้`, 'error');
+        await signInAnonymously(auth); 
+      }
+    } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user') {
+        fireAlert('เกิดข้อผิดพลาด', `ไม่สามารถเข้าสู่ระบบได้: ${error.message}`, 'error');
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleStaffClick = () => {
+    if (user && !user.isAnonymous && user.email && ALLOWED_ADMIN_EMAILS.includes(user.email)) {
+      setRole('staff');
+    } else {
+      setRole('login_admin');
+    }
   };
 
   const handleLogout = async () => {
@@ -249,152 +336,171 @@ export default function App() {
       await signOut(auth);
       await signInAnonymously(auth);
       setRole('guest');
-    } catch (error) { console.error("Logout error:", error); }
+    } catch (error) { console.error(error); }
   };
 
-  // ลบข้อมูลการแจ้งซ่อม
-  const handleDeleteIssue = async (docId: string) => {
-    fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้? การกระทำนี้ไม่สามารถย้อนกลับได้', 'warning', async () => {
-      try {
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId));
-      } catch (error) { console.error(error); fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error'); }
-    }, true);
-  };
+  useEffect(() => {
+    if (!user) return;
+    if (role === 'guest') return; 
 
-  // เพิ่มห้องเรียน
-  const handleAddRoom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRoomName.trim()) return;
-    try {
-      await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms'), { name: newRoomName.trim() });
-      setNewRoomName('');
-      fireAlert('เพิ่มห้องสำเร็จ', `เพิ่มห้อง ${newRoomName} เรียบร้อยแล้ว`, 'success');
-    } catch (error) { fireAlert('ผิดพลาด', 'ไม่สามารถเพิ่มห้องได้', 'error'); }
-  };
-
-  // ลบห้องเรียน
-  const handleDeleteRoom = async (roomId: string, roomName: string) => {
-    fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่?`, 'warning', async () => {
-      try {
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', roomId));
-      } catch (error) { fireAlert('ผิดพลาด', 'ลบห้องไม่สำเร็จ', 'error'); }
-    }, true);
-  };
-
-  // --- Stats Calculation Logic (Dashboard) ---
-  const statsData = useMemo(() => {
-    const stats = {
-      daily: {} as Record<string, number>,
-      monthly: {} as Record<string, number>,
-      yearly: {} as Record<string, number>,
-      byCategory: {} as Record<string, number>,
-      byReporter: {} as Record<string, number>,
-    };
-
-    issues.forEach(issue => {
-      if (!issue.timestamp) return;
-      const date = new Date(issue.timestamp.seconds * 1000);
-      const dayKey = date.toLocaleDateString('th-TH');
-      const monthKey = date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-      const yearKey = date.getFullYear().toString();
-
-      stats.daily[dayKey] = (stats.daily[dayKey] || 0) + 1;
-      stats.monthly[monthKey] = (stats.monthly[monthKey] || 0) + 1;
-      stats.yearly[yearKey] = (stats.yearly[yearKey] || 0) + 1;
-      stats.byCategory[issue.category] = (stats.byCategory[issue.category] || 0) + 1;
+    setLoadingData(true);
+    const q = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedIssues: Issue[] = snapshot.docs.map(doc => ({
+        docId: doc.id,
+        ...doc.data()
+      })) as Issue[];
       
-      const reporterLabel = issue.reporterType === 'student' ? 'นักศึกษา' : issue.reporterType === 'lecturer' ? 'อาจารย์' : 'อื่นๆ';
-      stats.byReporter[reporterLabel] = (stats.byReporter[reporterLabel] || 0) + 1;
+      fetchedIssues.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setIssues(fetchedIssues);
+      setLoadingData(false);
+    }, (error) => {
+      console.error(error);
+      setLoadingData(false);
     });
 
-    const formatForChart = (obj: Record<string, number>) => Object.entries(obj).map(([label, value]) => ({ label, value }));
+    return () => unsubscribe();
+  }, [user, role]);
 
-    // เรียงลำดับกราฟรายวัน (เอา 7 วันล่าสุด)
-    const sortedDaily = formatForChart(stats.daily).sort((a,b) => {
-       // แปลงวันที่ไทยกลับเป็น timestamp เพื่อเรียงลำดับคร่าวๆ (ในเคสจริงอาจต้องใช้ library จัดการวันที่)
-       return 0; // เรียงตามที่ firebase ส่งมาซึ่ง sort แล้ว
-    }).slice(0, 7);
-
-    return {
-      daily: sortedDaily,
-      monthly: formatForChart(stats.monthly),
-      yearly: formatForChart(stats.yearly),
-      byCategory: formatForChart(stats.byCategory),
-      byReporter: formatForChart(stats.byReporter),
-    };
-  }, [issues]);
-
-  const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
-  
-  const sendLineMessage = async (issueData: any) => {
-    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) return;
-    const messageText = `🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})\n--------------------\n📍 *ห้อง:* ${issueData.room}\n👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})\n📞 *เบอร์:* ${issueData.phone}\n⚠️ *ความเร่งด่วน:* ${issueData.urgency === 'high' ? '🔴 ด่วนมาก' : issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'}\n🛠 *ปัญหา:* ${issueData.category}\n📝 *รายละเอียด:* ${issueData.description}\n--------------------\nตรวจสอบ: https://smart-classroom-neon.vercel.app/`;
-    try {
-      await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
-        method: 'POST', headers: { 'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: LINE_GROUP_ID, messages: [{ type: "text", text: messageText.trim() }] }),
-      });
-    } catch (error) { console.error("Line Error", error); }
-  };
-
-  const handleGoogleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      if (result.user.email && ALLOWED_ADMIN_EMAILS.includes(result.user.email)) { setRole('staff'); } 
-      else { await signOut(auth); fireAlert('เข้าสู่ระบบไม่สำเร็จ', 'อีเมลนี้ไม่มีสิทธิ์', 'error'); await signInAnonymously(auth); }
-    } catch (error: any) { if (error.code !== 'auth/popup-closed-by-user') fireAlert('เกิดข้อผิดพลาด', error.message, 'error'); }
-    finally { setIsLoggingIn(false); }
-  };
+  const categories = [
+    { id: 'Visual', label: 'ภาพ/โปรเจคเตอร์', icon: Monitor },
+    { id: 'Audio', label: 'เสียง/ไมโครโฟน', icon: Speaker },
+    { id: 'Network', label: 'อินเทอร์เน็ต/Wi-Fi', icon: Wifi },
+    { id: 'Environment', label: 'แอร์/ไฟ/ความสะอาด', icon: Thermometer },
+    { id: 'Other', label: 'อื่นๆ', icon: AlertCircle },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return; }
-    if (!formData.room) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณาเลือกห้องเรียน', 'warning'); return; }
+
+    // --- Validation ด้วย SweetAlert ---
+    if (formData.phone.length !== 10) {
+      fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (ตัวเลขเท่านั้น)', 'warning');
+      return;
+    }
 
     setFormSubmitting(true);
-    const cleanData = { ...formData, room: formData.room.trim(), reporter: formData.reporter.trim(), phone: formData.phone.trim(), description: formData.description.trim() };
+    
+    const cleanData = {
+      ...formData,
+      room: formData.room.trim(),
+      reporter: formData.reporter.trim(),
+      phone: formData.phone.trim(),
+      description: formData.description.trim(),
+    };
+
     try {
-      const newIssue = { id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, ...cleanData, status: 'pending', timestamp: new Date() };
+      const newIssue = {
+        id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`,
+        ...cleanData,
+        status: 'pending',
+        timestamp: new Date(),
+      };
+      
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
       await sendLineMessage(newIssue);
-      fireAlert('แจ้งปัญหาสำเร็จ!', 'ขอบคุณที่แจ้งปัญหาเข้ามา', 'success', () => { setShowForm(false); setFormData({ room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer', phone: '', urgency: 'medium' }); });
-    } catch (error) { fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้', 'error'); } finally { setFormSubmitting(false); }
+
+      // --- Success Alert ---
+      fireAlert('แจ้งปัญหาสำเร็จ!', 'ขอบคุณที่แจ้งปัญหาเข้ามา เจ้าหน้าที่จะรีบดำเนินการตรวจสอบโดยเร็วที่สุด', 'success', () => {
+        setShowForm(false);
+        setFormData({ 
+          room: '', 
+          category: 'Visual', 
+          description: '', 
+          reporter: '', 
+          reporterType: 'lecturer', 
+          phone: '', 
+          urgency: 'medium' 
+        });
+      });
+
+    } catch (error) {
+      fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่อีกครั้ง', 'error');
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
-    try { await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus }); } catch (error) { console.error(error); }
+    try {
+      const issueRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId);
+      await updateDoc(issueRef, { status: newStatus });
+    } catch (error) { console.error(error); }
   };
 
-  const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    return date.toLocaleDateString('th-TH', {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
+  };
 
-  if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" /></div>;
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" />
+      </div>
+    );
+  }
 
-  const categories = [
-    { id: 'Visual', icon: Monitor, label: 'ภาพ/โปรเจคเตอร์' },
-    { id: 'Audio', icon: Speaker, label: 'เสียง/ไมโครโฟน' },
-    { id: 'Network', icon: Wifi, label: 'อินเทอร์เน็ต/Wi-Fi' },
-    { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ/ความสะอาด' },
-    { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
-  ];
+  // --- Calculate Stats (เพิ่มส่วนที่หายไปกลับมา เพื่อแก้ Error) ---
+  const stats = {
+    pending: issues.filter(i => i.status === 'pending').length,
+    inProgress: issues.filter(i => i.status === 'in-progress').length,
+    completed: issues.filter(i => i.status === 'completed').length,
+  };
 
   // --- RENDER ---
   return (
     <>
-      <SweetAlert show={alertConfig.show} title={alertConfig.title} text={alertConfig.text} icon={alertConfig.icon} onConfirm={alertConfig.onConfirm} onCancel={alertConfig.onCancel} showCancel={alertConfig.showCancel} />
+      {/* ใส่ SweetAlert ไว้ที่ Root เพื่อให้แสดงทับทุกหน้า */}
+      <SweetAlert 
+        show={alertConfig.show}
+        title={alertConfig.title}
+        text={alertConfig.text}
+        icon={alertConfig.icon}
+        onConfirm={alertConfig.onConfirm}
+      />
 
       {/* --- View: Login Admin --- */}
       {role === 'login_admin' && (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center border-t-8 border-[#66FF00]">
-            <div className="bg-[#66FF00] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-black"><Lock size={32} /></div>
+            <div className="bg-[#66FF00] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-black">
+              <Lock size={32} />
+            </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบเจ้าหน้าที่</h2>
-            <button onClick={handleGoogleLogin} disabled={isLoggingIn} className="w-full bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-50 hover:border-[#66FF00] transition flex justify-center items-center gap-3 mt-4">
-              {isLoggingIn ? <Loader2 className="animate-spin text-[#66FF00]" /> : <>Login with Google</>}
+            <p className="text-gray-500 mb-8">กรุณายืนยันตัวตนด้วย Google Account <br/>(เฉพาะอีเมลที่ได้รับอนุญาตเท่านั้น)</p>
+
+            <button 
+              onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
+              className="w-full bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-50 hover:border-[#66FF00] transition flex justify-center items-center gap-3 disabled:opacity-50"
+            >
+              {isLoggingIn ? (
+                <Loader2 className="animate-spin text-[#66FF00]" />
+              ) : (
+                <>
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
+                  Sign in with Google
+                </>
+              )}
             </button>
-            <button onClick={() => setRole('guest')} className="w-full mt-4 text-gray-500 py-2 hover:text-black text-sm">ย้อนกลับ</button>
+
+            <button 
+              type="button"
+              onClick={() => setRole('guest')}
+              className="w-full mt-4 text-gray-500 py-2 hover:text-black text-sm"
+            >
+              ย้อนกลับ
+            </button>
           </div>
         </div>
       )}
@@ -403,78 +509,145 @@ export default function App() {
       {role === 'guest' && (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center p-4">
           <div className="max-w-4xl w-full text-center">
-            <div className="bg-[#66FF00] w-20 h-20 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-6 text-black"><Monitor size={48} /></div>
+            <div className="bg-[#66FF00] w-20 h-20 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-6 text-black">
+              <Monitor size={48} />
+            </div>
             <h1 className="text-4xl font-black text-gray-900 mb-3 font-sans tracking-tight">Smart Classroom Support</h1>
             <p className="text-gray-600 text-lg mb-12">ระบบแจ้งปัญหาและบริหารจัดการห้องเรียนอัจฉริยะ (ม.ใน)</p>
+
             <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto text-left">
-              <button onClick={() => setRole('reporter')} className="bg-white p-8 rounded-3xl shadow-xl hover:-translate-y-2 transition-all group border-b-4 border-gray-200 hover:border-[#66FF00]">
-                <div className="bg-[#e6ffcc] w-16 h-16 rounded-2xl flex items-center justify-center text-green-700 mb-6 group-hover:scale-110 transition-transform"><UserIcon size={36} /></div>
+              <button 
+                onClick={() => setRole('reporter')}
+                className="bg-white p-8 rounded-3xl shadow-xl hover:-translate-y-2 transition-all group border-b-4 border-gray-200 hover:border-[#66FF00]"
+              >
+                <div className="bg-[#e6ffcc] w-16 h-16 rounded-2xl flex items-center justify-center text-green-700 mb-6 group-hover:scale-110 transition-transform">
+                  <UserIcon size={36} />
+                </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">แจ้งปัญหาห้องเรียน</h2>
-                <div className="flex items-center text-green-600 font-bold group-hover:translate-x-2 transition-transform">เข้าสู่ระบบผู้แจ้ง <ArrowRight size={20} className="ml-2" /></div>
+                <p className="text-gray-500 mb-6">สำหรับอาจารย์/นักศึกษา แจ้งเหตุขัดข้อง</p>
+                <div className="flex items-center text-green-600 font-bold group-hover:translate-x-2 transition-transform">
+                  เข้าสู่ระบบผู้แจ้ง <ArrowRight size={20} className="ml-2" />
+                </div>
               </button>
-              <button onClick={() => user && !user.isAnonymous && ALLOWED_ADMIN_EMAILS.includes(user.email || '') ? setRole('staff') : setRole('login_admin')} className="bg-black p-8 rounded-3xl shadow-xl hover:-translate-y-2 transition-all group border-b-4 border-gray-800 hover:border-[#66FF00]">
-                <div className="bg-gray-800 w-16 h-16 rounded-2xl flex items-center justify-center text-[#66FF00] mb-6 group-hover:scale-110 transition-transform"><Shield size={36} /></div>
+
+              <button 
+                onClick={handleStaffClick} 
+                className="bg-black p-8 rounded-3xl shadow-xl hover:-translate-y-2 transition-all group border-b-4 border-gray-800 hover:border-[#66FF00]"
+              >
+                <div className="bg-gray-800 w-16 h-16 rounded-2xl flex items-center justify-center text-[#66FF00] mb-6 group-hover:scale-110 transition-transform">
+                  <Shield size={36} />
+                </div>
                 <h2 className="text-2xl font-bold text-white mb-2">เจ้าหน้าที่ดูแลระบบ</h2>
-                <div className="flex items-center text-[#66FF00] font-bold group-hover:translate-x-2 transition-transform">เข้าสู่ระบบเจ้าหน้าที่ <ArrowRight size={20} className="ml-2" /></div>
+                <p className="text-gray-400 mb-6">สำหรับ IT Support จัดการงานซ่อม</p>
+                <div className="flex items-center text-[#66FF00] font-bold group-hover:translate-x-2 transition-transform">
+                  เข้าสู่ระบบเจ้าหน้าที่ <ArrowRight size={20} className="ml-2" />
+                </div>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- View: Reporter Form --- */}
+      {/* --- View: Reporter Form (Fix Mobile Layout) --- */}
       {role === 'reporter' && (
         <div className="min-h-screen bg-gray-50 flex flex-col">
+          {/* Header */}
           <div className="w-full p-6 flex justify-between items-center shrink-0 bg-white border-b shadow-sm sticky top-0 z-10">
-            <div className="flex items-center gap-2 text-gray-900 font-bold text-xl"><div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>SmartClass</div>
-            <button onClick={() => setRole('guest')} className="text-gray-500 hover:text-red-600 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition"><LogOut size={18} /> ออกจากระบบ</button>
+            <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
+               <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
+               SmartClass
+            </div>
+            <button onClick={() => setRole('guest')} className="text-gray-500 hover:text-red-600 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+              <LogOut size={18} /> ออกจากระบบ
+            </button>
           </div>
+
+          {/* Content: ใช้ justify-start เพื่อแก้ปัญหาซ้อนทับ และ overflow-y-auto */}
           <div className="flex-1 flex flex-col items-center justify-start p-4 w-full overflow-y-auto">
             <div className="max-w-lg w-full space-y-6 text-center pt-6 pb-20">
               {!showForm ? (
                 <div className="space-y-8 animate-fade-in-up">
-                  <div><h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">พบปัญหาการใช้งานห้องเรียน?</h1><p className="text-gray-600 text-lg">แจ้งปัญหาได้ทันที</p></div>
-                  <button onClick={() => setShowForm(true)} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black text-xl font-bold p-8 rounded-3xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-4 group">
-                    <div className="bg-black/10 p-4 rounded-full group-hover:scale-110 transition-transform"><Wrench size={40} /></div>แจ้งปัญหาใหม่
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">พบปัญหาการใช้งานห้องเรียน?</h1>
+                    <p className="text-gray-600 text-lg">แจ้งปัญหาได้ทันที โดยไม่ต้องล็อกอินเพื่อตรวจสอบสถานะ</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowForm(true)}
+                    className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black text-xl font-bold p-8 rounded-3xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all flex flex-col items-center justify-center gap-4 group"
+                  >
+                    <div className="bg-black/10 p-4 rounded-full group-hover:scale-110 transition-transform">
+                      <Wrench size={40} />
+                    </div>
+                    แจ้งปัญหาใหม่
                   </button>
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up text-left border-t-4 border-[#66FF00]">
-                  <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-lg text-gray-800">แบบฟอร์มแจ้งปัญหา</h3><button onClick={() => setShowForm(false)}><X size={20} className="text-gray-400" /></button></div>
+                  <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-gray-800">แบบฟอร์มแจ้งปัญหา</h3>
+                    <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-black">
+                      <LogOut size={20} />
+                    </button>
+                  </div>
                   <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
-                        <select 
+                        <input 
                           required 
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none bg-white"
-                          value={formData.room}
-                          onChange={e => setFormData({...formData, room: e.target.value})}
-                        >
-                          <option value="">-- เลือกห้อง --</option>
-                          {rooms.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                        </select>
+                          type="text" 
+                          placeholder="เช่น 942" 
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                          value={formData.room} 
+                          onChange={handleRoomChange} 
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ผู้แจ้ง</label>
-                        <input required type="text" placeholder="ชื่อ-สกุล" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.reporter} onChange={handleNameChange} />
+                        <input 
+                          required 
+                          type="text" 
+                          placeholder="ชื่อ-สกุล" 
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                          value={formData.reporter} 
+                          onChange={handleNameChange} 
+                        />
                       </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
                           <div className="relative">
-                            <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00] appearance-none" value={formData.reporterType} onChange={e => setFormData({...formData, reporterType: e.target.value as ReporterType})}>
-                              <option value="lecturer">อาจารย์</option><option value="student">นักศึกษา</option><option value="other">อื่น ๆ</option>
+                            <select 
+                              className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00] appearance-none"
+                              value={formData.reporterType}
+                              onChange={e => setFormData({...formData, reporterType: e.target.value as ReporterType})}
+                            >
+                              <option value="lecturer">อาจารย์</option>
+                              <option value="student">นักศึกษา</option>
+                              <option value="other">อื่น ๆ</option> 
                             </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500"><GraduationCap size={16} /></div>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                               <GraduationCap size={16} />
+                            </div>
                           </div>
                        </div>
+
                        <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
-                        <input required type="tel" maxLength={10} placeholder="0xx-xxx-xxxx" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.phone} onChange={handlePhoneChange} />
+                        <input 
+                            required 
+                            type="tel" 
+                            maxLength={10} 
+                            placeholder="0xx-xxx-xxxx" 
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                            value={formData.phone} 
+                            onChange={handlePhoneChange} 
+                        />
                       </div>
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
                       <div className="grid grid-cols-3 gap-2">
@@ -487,171 +660,154 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
-                      <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                      <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" placeholder="อธิบายอาการเสียที่พบ..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
                       <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
-                        <option value="low">ทั่วไป</option><option value="medium">ปานกลาง</option><option value="high">ด่วนมาก</option>
+                        <option value="low">ทั่วไป (รอได้)</option>
+                        <option value="medium">ปานกลาง (ควรแก้ไขภายในวัน)</option>
+                        <option value="high">ด่วนมาก (กระทบการเรียนการสอน)</option>
                       </select>
                     </div>
                     <div className="pt-2">
-                      <button type="submit" disabled={formSubmitting} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                      <button type="submit" disabled={formSubmitting} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black py-3 rounded-xl font-bold transition shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                         {formSubmitting ? <Loader2 className="animate-spin" /> : 'ยืนยันการแจ้ง'}
                       </button>
+                      <button type="button" onClick={() => setShowForm(false)} className="w-full mt-2 text-gray-500 py-2 rounded-xl font-medium hover:bg-gray-100 transition">ยกเลิก</button>
                     </div>
                   </form>
                 </div>
               )}
             </div>
+            <div className="mt-8 text-gray-400 text-sm">© 2025 Smart Classroom System</div>
           </div>
         </div>
       )}
 
-      {/* --- View: Staff / Admin Dashboard (Super Admin Features) --- */}
+      {/* --- View: Staff / Admin Dashboard --- */}
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
           <aside className="bg-white w-full md:w-64 md:h-screen shadow-lg z-20 flex-shrink-0 flex flex-col">
             <div className="p-6 border-b flex items-center gap-3">
               <div className="bg-[#66FF00] p-2 rounded-lg text-black"><Monitor size={24} /></div>
-              <div><span className="font-bold text-xl tracking-tight text-gray-900 block">SmartClass</span><span className="text-xs text-gray-500 font-medium tracking-wide">ADMIN</span></div>
+              <div><span className="font-bold text-xl tracking-tight text-gray-900 block">SmartClass</span><span className="text-xs text-gray-500 font-medium tracking-wide">STAFF PORTAL</span></div>
             </div>
             <nav className="flex-1 p-4 space-y-2">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Menu</div>
-              <button onClick={() => setAdminTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'dashboard' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutGrid size={20} /> ภาพรวม (Dashboard)</button>
-              <button onClick={() => setAdminTab('issues')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'issues' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /> จัดการการแจ้งซ่อม</button>
-              <button onClick={() => setAdminTab('rooms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'rooms' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><Monitor size={20} /> จัดการห้องเรียน</button>
+              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#66FF00]/20 text-green-900 font-semibold shadow-sm border-l-4 border-[#66FF00]"><Menu size={20} /> ภาพรวมงานซ่อม</button>
             </nav>
-            <div className="p-4 border-t"><button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm"><LogOut size={16} /> ออกจากระบบ</button></div>
+            <div className="p-4 border-t space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-[#66FF00] font-bold">AD</div>
+                <div><p className="text-sm font-semibold">Admin Staff</p><p className="text-xs text-gray-500">{user?.email || 'IT Dept'}</p></div>
+              </div>
+              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm">
+                <LogOut size={16} /> ออกจากระบบ
+              </button>
+            </div>
           </aside>
 
           <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-            
-            {/* --- TAB 1: Dashboard (Graphs & Stats) --- */}
-            {adminTab === 'dashboard' && (
-              <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BarChart3 /> สรุปสถิติการแจ้งซ่อม</h1>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* แสดงกราฟต่างๆ (คำนวณจาก statsData) */}
-                  <SimpleBarChart title="ยอดแจ้งซ่อมรายวัน (7 วันล่าสุด)" data={statsData.daily} color="bg-blue-500" />
-                  <SimpleBarChart title="ยอดแจ้งซ่อมรายเดือน" data={statsData.monthly} color="bg-green-500" />
-                  <SimpleBarChart title="ยอดแจ้งซ่อมรายปี" data={statsData.yearly} color="bg-purple-500" />
-                  <SimpleBarChart title="แยกตามประเภทปัญหา" data={statsData.byCategory} color="bg-orange-500" />
-                  <SimpleBarChart title="แยกตามผู้แจ้ง" data={statsData.byReporter} color="bg-pink-500" />
-                </div>
+            <div className="max-w-6xl mx-auto space-y-6">
+              <div className="flex justify-between items-center">
+                 <h1 className="text-2xl font-bold text-gray-800">Dashboard เจ้าหน้าที่</h1>
+                 <div className="text-sm text-gray-500 flex items-center gap-2">
+                   {loadingData && <Loader2 size={16} className="animate-spin text-[#66FF00]" />}
+                   สถานะ: {loadingData ? 'กำลังซิงค์...' : 'ออนไลน์'}
+                 </div>
               </div>
-            )}
-
-            {/* --- TAB 2: Issues (Manage Issues + Delete) --- */}
-            {adminTab === 'issues' && (
-              <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                  <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileText /> รายการแจ้งซ่อม</h1>
-                  {/* ตัวกรอง (Filter) */}
-                  <div className="flex gap-2 text-sm">
-                    <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-                      <option value="all">ทุกประเภทปัญหา</option>
-                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
-                    </select>
-                    <select className="border rounded-lg px-3 py-2 bg-white" value={filterReporterType} onChange={e => setFilterReporterType(e.target.value)}>
-                      <option value="all">ผู้แจ้งทุกคน</option>
-                      <option value="lecturer">อาจารย์</option>
-                      <option value="student">นักศึกษา</option>
-                    </select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-yellow-400">
+                  <div className="flex justify-between items-start">
+                    <div><p className="text-gray-500 text-sm">รอดำเนินการ</p><h3 className="text-3xl font-bold text-gray-800">{stats.pending}</h3></div>
+                    <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Clock size={24} /></div>
                   </div>
                 </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-[#66FF00]">
+                  <div className="flex justify-between items-start">
+                    <div><p className="text-gray-500 text-sm">กำลังแก้ไข</p><h3 className="text-3xl font-bold text-gray-800">{stats.inProgress}</h3></div>
+                    <div className="p-2 bg-[#e6ffcc] rounded-lg text-green-700"><Wrench size={24} /></div>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-gray-400">
+                  <div className="flex justify-between items-start">
+                    <div><p className="text-gray-500 text-sm">เสร็จสิ้น</p><h3 className="text-3xl font-bold text-gray-800">{stats.completed}</h3></div>
+                    <div className="p-2 bg-gray-100 rounded-lg text-gray-600"><CheckCircle size={24} /></div>
+                  </div>
+                </div>
+              </div>
 
-                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600">
-                      <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
-                        <tr>
-                          <th className="px-6 py-3">เวลา/ห้อง</th>
-                          <th className="px-6 py-3">ผู้แจ้ง</th>
-                          <th className="px-6 py-3">รายละเอียด</th>
-                          <th className="px-6 py-3">สถานะ</th>
-                          <th className="px-6 py-3 text-right">จัดการ</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {issues.filter(i => (filterCategory === 'all' || i.category === filterCategory) && (filterReporterType === 'all' || i.reporterType === filterReporterType))
-                          .map((issue) => (
-                          <tr key={issue.docId} className="hover:bg-gray-50 transition">
-                            <td className="px-6 py-4">
-                              <div className="font-mono text-gray-500 text-xs">{formatDate(issue.timestamp)}</div>
-                              <div className="font-bold text-indigo-600 text-base">{issue.room}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-medium text-gray-900">{issue.reporter}</div>
-                              <div className="text-xs text-gray-500">{getReporterLabel(issue.reporterType)}</div>
-                              {issue.phone && <div className="text-xs text-gray-400 mt-0.5"><Phone size={10} className="inline mr-1"/>{issue.phone}</div>}
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 border border-gray-200 mb-1 inline-block">{issue.category}</span>
-                              <p className="truncate max-w-xs text-gray-800">{issue.description}</p>
-                            </td>
-                            <td className="px-6 py-4"><StatusBadge status={issue.status} /></td>
-                            <td className="px-6 py-4 text-right">
-                               <div className="flex justify-end gap-2">
-                                {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded tooltip" title="รับงาน"><Wrench size={16} /></button>}
-                                {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded" title="ปิดงาน"><CheckCircle size={16} /></button>}
-                                {/* ปุ่มลบ (ถังขยะ) สำหรับลบข้อมูลขยะ */}
-                                <button onClick={() => handleDeleteIssue(issue.docId!)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded" title="ลบรายการ"><Trash2 size={16} /></button>
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div className="p-4 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h2 className="font-bold text-gray-800 flex items-center gap-2"><Menu size={20} className="text-gray-400"/> รายการแจ้งซ่อมทั้งหมด</h2>
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input type="text" placeholder="ค้นหาห้อง, รหัส..." className="pl-9 pr-4 py-1.5 border rounded-lg text-sm w-full md:w-64 focus:ring-1 focus:ring-[#66FF00] outline-none" />
+                    </div>
+                    <button className="p-2 border rounded-lg hover:bg-gray-50 text-gray-600"><Filter size={16} /></button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-gray-600">
+                    <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
+                      <tr>
+                        <th className="px-6 py-3">รหัส/เวลา</th>
+                        <th className="px-6 py-3">ห้อง/ผู้แจ้ง</th>
+                        <th className="px-6 py-3">รายละเอียด</th>
+                        <th className="px-6 py-3">ความเร่งด่วน</th>
+                        <th className="px-6 py-3">สถานะ</th>
+                        <th className="px-6 py-3 text-right">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {issues.map((issue) => (
+                        <tr key={issue.docId} className="hover:bg-gray-50 transition">
+                          <td className="px-6 py-4">
+                            <div className="font-mono text-gray-900 font-medium">{issue.id}</div>
+                            <div className="text-xs text-gray-400">{formatDate(issue.timestamp)}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-gray-900">{issue.room}</div>
+                            <div className="text-xs">
+                               {issue.reporter} 
+                               <span className="text-gray-400 ml-1">
+                                 ({getReporterLabel(issue.reporterType)})
+                               </span>
+                            </div>
+                            {issue.phone && (
+                               <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                 <Phone size={10} /> {issue.phone}
                                </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {issues.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">ยังไม่มีข้อมูล</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 mb-1"><span className="px-1.5 py-0.5 rounded text-[10px] border bg-gray-50 text-gray-600 uppercase">{issue.category}</span></div>
+                            <p className="truncate max-w-xs text-gray-800">{issue.description}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            {issue.urgency === 'high' ? <span className="text-red-600 text-xs font-bold flex items-center bg-red-50 px-2 py-1 rounded w-fit"><AlertCircle size={12} className="mr-1"/> ด่วนมาก</span> :
+                             issue.urgency === 'medium' ? <span className="text-orange-600 text-xs font-medium bg-orange-50 px-2 py-1 rounded w-fit">ปานกลาง</span> :
+                             <span className="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded w-fit">ทั่วไป</span>}
+                          </td>
+                          <td className="px-6 py-4"><StatusBadge status={issue.status} /></td>
+                          <td className="px-6 py-4 text-right">
+                             <div className="flex justify-end gap-1">
+                              {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-medium border border-blue-200 transition"><Wrench size={14} /> รับงาน</button>}
+                              {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 hover:bg-green-100 rounded text-xs font-medium border border-green-200 transition"><CheckCircle size={14} /> ปิดงาน</button>}
+                              {issue.status === 'completed' && <span className="text-green-500 text-xs flex items-center gap-1 justify-end"><CheckCircle size={14}/> เรียบร้อย</span>}
+                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {issues.length === 0 && !loadingData && <tr><td colSpan={6} className="text-center py-8 text-gray-400">ยังไม่มีข้อมูลการแจ้งซ่อมในระบบ</td></tr>}
+                      {loadingData && <tr><td colSpan={6} className="text-center py-8 text-[#66FF00]"><div className="flex justify-center items-center gap-2"><Loader2 className="animate-spin" /> กำลังโหลดข้อมูล...</div></td></tr>}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            )}
-
-            {/* --- TAB 3: Rooms (Manage Rooms) --- */}
-            {adminTab === 'rooms' && (
-              <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
-                
-                {/* Form เพิ่มห้องใหม่ */}
-                <form onSubmit={handleAddRoom} className="bg-white p-6 rounded-xl shadow-sm border flex gap-4 items-end">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อห้อง / เลขห้อง</label>
-                    <input 
-                      type="text" 
-                      placeholder="เช่น 942, 943, Lab คอม 1"
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none"
-                      value={newRoomName}
-                      onChange={e => setNewRoomName(e.target.value)}
-                    />
-                  </div>
-                  <button type="submit" className="bg-[#66FF00] text-black font-bold px-6 py-2.5 rounded-lg hover:opacity-90 flex items-center gap-2">
-                    <Plus size={20} /> เพิ่มห้อง
-                  </button>
-                </form>
-
-                {/* ตารางแสดงรายชื่อห้อง */}
-                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b font-medium text-gray-700">รายชื่อห้องทั้งหมด ({rooms.length})</div>
-                  <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
-                    {rooms.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400">ยังไม่มีข้อมูลห้องเรียน กรุณาเพิ่มห้องใหม่</div>
-                    ) : (
-                      rooms.map(room => (
-                        <div key={room.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
-                          <span className="font-bold text-gray-800 text-lg">{room.name}</span>
-                          <button onClick={() => handleDeleteRoom(room.id, room.name)} className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
+            </div>
           </main>
         </div>
       )}
