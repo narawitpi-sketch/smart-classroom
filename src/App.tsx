@@ -60,7 +60,7 @@ const ALLOWED_ADMIN_EMAILS = [
 
 // --- 🔵 ตั้งค่า LINE Messaging API (แทน Notify) ---
 // นำรหัสจากขั้นตอนที่ 3 มาใส่
-const LINE_CHANNEL_ACCESS_TOKEN = "7aW4XhrMoeaZBWOx53uRUA0FPXmxKf/4byBA9HfBrhXM3lnhTSHi+KiR7c8DeJrDlnUbnoGeaAr84CbAhOm6GCrJf2+fSbH2OaqdK9VZ2iKPhf7N+HGo3pM7fP86gG3Gw89MP0ApQTyGIuwXQTUVbQdB04t89/1O/w1cDnyilFU="; 
+const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
 
 // นำรหัสจากขั้นตอนที่ 4 มาใส่
 const LINE_USER_ID = "Ueb1981363a558626e0103bc71e90de01"; 
