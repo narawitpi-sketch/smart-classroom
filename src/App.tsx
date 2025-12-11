@@ -18,7 +18,7 @@ import {
   Loader2,
   Lock,
   Phone,
-  GraduationCap // เพิ่มไอคอนสำหรับแสดงประเภทผู้แจ้ง
+  GraduationCap
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -58,6 +58,13 @@ const ALLOWED_ADMIN_EMAILS = [
   'narawit.pi@nsru.ac.th',
 ];
 
+// --- 🔵 ตั้งค่า LINE Messaging API (แทน Notify) ---
+// นำรหัสจากขั้นตอนที่ 3 มาใส่
+const LINE_CHANNEL_ACCESS_TOKEN = "7aW4XhrMoeaZBWOx53uRUA0FPXmxKf/4byBA9HfBrhXM3lnhTSHi+KiR7c8DeJrDlnUbnoGeaAr84CbAhOm6GCrJf2+fSbH2OaqdK9VZ2iKPhf7N+HGo3pM7fP86gG3Gw89MP0ApQTyGIuwXQTUVbQdB04t89/1O/w1cDnyilFU="; 
+
+// นำรหัสจากขั้นตอนที่ 4 มาใส่
+const LINE_USER_ID = "Ueb1981363a558626e0103bc71e90de01"; 
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -66,7 +73,7 @@ const db = getFirestore(app);
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
-type ReporterType = 'student' | 'lecturer'; // เพิ่ม Type ใหม่
+type ReporterType = 'student' | 'lecturer';
 
 interface Issue {
   id: string;
@@ -74,7 +81,7 @@ interface Issue {
   category: string;
   description: string;
   reporter: string;
-  reporterType: ReporterType; // เพิ่มฟิลด์ reporterType
+  reporterType: ReporterType;
   phone: string;
   urgency: Urgency;
   status: Status;
@@ -143,10 +150,57 @@ export default function App() {
     category: 'Visual',
     description: '',
     reporter: '',
-    reporterType: 'student' as ReporterType, // ค่าเริ่มต้นเป็นนักศึกษา
+    reporterType: 'student' as ReporterType,
     phone: '',
     urgency: 'medium' as Urgency,
   });
+
+  // --- ฟังก์ชันส่ง LINE Messaging API ---
+  const sendLineMessage = async (issueData: any) => {
+    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_USER_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
+      console.warn("ยังไม่ได้ตั้งค่า LINE Messaging API");
+      return;
+    }
+
+    const messageText = `
+🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})
+--------------------
+📍 *ห้อง:* ${issueData.room}
+👤 *ผู้แจ้ง:* ${issueData.reporter} (${issueData.reporterType === 'student' ? 'นักศึกษา' : 'อาจารย์'})
+📞 *เบอร์:* ${issueData.phone}
+⚠️ *ความเร่งด่วน:* ${
+      issueData.urgency === 'high' ? '🔴 ด่วนมาก' : 
+      issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'
+    }
+🛠 *ปัญหา:* ${issueData.category}
+📝 *รายละเอียด:* ${issueData.description}
+--------------------
+ตรวจสอบ: https://smart-classroom-neon.vercel.app/
+`;
+
+    try {
+      // ใช้ CORS Proxy เพื่อยิงหา LINE Messaging API จากหน้าเว็บ
+      await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: LINE_USER_ID,
+          messages: [
+            {
+              type: "text",
+              text: messageText.trim()
+            }
+          ]
+        }),
+      });
+      console.log("LINE Message sent!");
+    } catch (error) {
+      console.error("Failed to send LINE message:", error);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
@@ -244,7 +298,13 @@ export default function App() {
         status: 'pending',
         timestamp: new Date(),
       };
+      
+      // 1. บันทึกลง Firebase
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
+      
+      // 2. ส่งแจ้งเตือน LINE Messaging API
+      await sendLineMessage(newIssue);
+
       setShowForm(false);
       setFormData({ 
         room: '', 
@@ -259,6 +319,7 @@ export default function App() {
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
+      console.error(error);
     } finally {
       setFormSubmitting(false);
     }
@@ -376,11 +437,10 @@ export default function App() {
     );
   }
 
-  // --- View: Reporter Form (Fix Mobile Layout) ---
+  // --- View: Reporter Form ---
   if (role === 'reporter') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Header */}
         <div className="w-full p-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
              <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
@@ -391,7 +451,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 flex flex-col items-center justify-center p-4 w-full">
           <div className="max-w-lg w-full space-y-6 text-center">
             {showSuccess ? (
@@ -445,7 +504,6 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                     {/* --- เพิ่มช่องสถานะผู้แจ้ง --- */}
                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
                         <div className="relative">
@@ -463,7 +521,6 @@ export default function App() {
                         </div>
                      </div>
 
-                     {/* --- ช่องเบอร์โทรศัพท์ --- */}
                      <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
                       <input 
