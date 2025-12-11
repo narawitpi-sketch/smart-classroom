@@ -173,7 +173,6 @@ const StatusBadge = ({ status }: { status: Status }) => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- Alert State ---
@@ -217,7 +216,7 @@ export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  // ลบ showSuccess และ setShowSuccess ที่ไม่ได้ใช้ออก
   const [formSubmitting, setFormSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -301,7 +300,7 @@ export default function App() {
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
-    setLoginError('');
+    // ลบ setLoginError(''); ออกเพราะเราใช้ Alert แทนแล้ว
     const provider = new GoogleAuthProvider();
 
     try {
@@ -494,13 +493,6 @@ export default function App() {
                 </>
               )}
             </button>
-
-            {loginError && (
-              <div className="mt-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg flex items-center gap-2 text-left">
-                <AlertCircle size={16} className="shrink-0" /> 
-                <span>{loginError}</span>
-              </div>
-            )}
 
             <button 
               type="button"
