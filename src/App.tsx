@@ -61,7 +61,8 @@ const ALLOWED_ADMIN_EMAILS = [
 
 // --- 🔵 ตั้งค่า LINE Messaging API ---
 const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
-const LINE_Group_Id = "C8d92d6c426766edb968dabcb780d4c39"; 
+// แก้ไขชื่อตัวแปรให้เป็นมาตรฐาน (UpperCase)
+const LINE_GROUP_ID = "C8d92d6c426766edb968dabcb780d4c39"; 
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -261,7 +262,7 @@ export default function App() {
   };
 
   const sendLineMessage = async (issueData: any) => {
-    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_Group_Id || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
+    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
       return;
     }
 
@@ -289,7 +290,7 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: LINE_Group_Id,
+          to: LINE_GROUP_ID,
           messages: [{ type: "text", text: messageText.trim() }]
         }),
       });
