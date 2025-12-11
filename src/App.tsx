@@ -451,6 +451,13 @@ export default function App() {
     );
   }
 
+  // --- Calculate Stats (เพิ่มส่วนที่หายไปกลับมา เพื่อแก้ Error) ---
+  const stats = {
+    pending: issues.filter(i => i.status === 'pending').length,
+    inProgress: issues.filter(i => i.status === 'in-progress').length,
+    completed: issues.filter(i => i.status === 'completed').length,
+  };
+
   // --- RENDER ---
   return (
     <>
@@ -487,6 +494,13 @@ export default function App() {
                 </>
               )}
             </button>
+
+            {loginError && (
+              <div className="mt-4 text-red-500 text-sm bg-red-50 p-3 rounded-lg flex items-center gap-2 text-left">
+                <AlertCircle size={16} className="shrink-0" /> 
+                <span>{loginError}</span>
+              </div>
+            )}
 
             <button 
               type="button"
@@ -542,10 +556,11 @@ export default function App() {
         </div>
       )}
 
-      {/* --- View: Reporter Form --- */}
+      {/* --- View: Reporter Form (Fix Mobile Layout) --- */}
       {role === 'reporter' && (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-          <div className="w-full p-6 flex justify-between items-center shrink-0">
+          {/* Header */}
+          <div className="w-full p-6 flex justify-between items-center shrink-0 bg-white border-b shadow-sm sticky top-0 z-10">
             <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
                <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
                SmartClass
@@ -555,8 +570,9 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center p-4 w-full">
-            <div className="max-w-lg w-full space-y-6 text-center">
+          {/* Content: ใช้ justify-start เพื่อแก้ปัญหาซ้อนทับ และ overflow-y-auto */}
+          <div className="flex-1 flex flex-col items-center justify-start p-4 w-full overflow-y-auto">
+            <div className="max-w-lg w-full space-y-6 text-center pt-6 pb-20">
               {!showForm ? (
                 <div className="space-y-8 animate-fade-in-up">
                   <div>
