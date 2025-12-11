@@ -63,7 +63,7 @@ const ALLOWED_ADMIN_EMAILS = [
 const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
 
 // นำรหัสจากขั้นตอนที่ 4 มาใส่
-const LINE_USER_ID = "Ueb1981363a558626e0103bc71e90de01"; 
+const LINE_USER_ID = "C8d92d6c426766edb968dabcb780d4c39"; 
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -512,8 +512,8 @@ export default function App() {
                             value={formData.reporterType}
                             onChange={e => setFormData({...formData, reporterType: e.target.value as ReporterType})}
                           >
-                            <option value="student">นักศึกษา</option>
                             <option value="lecturer">อาจารย์</option>
+                            <option value="student">นักศึกษา</option>
                           </select>
                           <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
                              <GraduationCap size={16} />
