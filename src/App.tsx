@@ -63,7 +63,7 @@ const ALLOWED_ADMIN_EMAILS = [
 const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
 
 // นำรหัสจากขั้นตอนที่ 4 มาใส่
-const LINE_USER_ID = "C8d92d6c426766edb968dabcb780d4c39"; 
+const LINE_Group_Id = "C8d92d6c426766edb968dabcb780d4c39"; 
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -157,7 +157,7 @@ export default function App() {
 
   // --- ฟังก์ชันส่ง LINE Messaging API ---
   const sendLineMessage = async (issueData: any) => {
-    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_USER_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
+    if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_Group_Id || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) {
       console.warn("ยังไม่ได้ตั้งค่า LINE Messaging API");
       return;
     }
@@ -187,7 +187,7 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: LINE_USER_ID,
+          to: LINE_Group_Id,
           messages: [
             {
               type: "text",
