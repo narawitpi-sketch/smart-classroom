@@ -58,11 +58,8 @@ const ALLOWED_ADMIN_EMAILS = [
   'narawit.pi@nsru.ac.th',
 ];
 
-// --- 🔵 ตั้งค่า LINE Messaging API (แทน Notify) ---
-// นำรหัสจากขั้นตอนที่ 3 มาใส่
+// --- 🔵 ตั้งค่า LINE Messaging API ---
 const LINE_CHANNEL_ACCESS_TOKEN = "GA3r5ViM4lH1TYGzllT9XKErXn2MlxUKBq8F9c4R/SIeAqHMrKKaGwopC9dcv1vNdcb2/g9383YGFjvMUW72bqHVaqjYUpHPbAYHv+a8glAc4wWda5c0dQyP+IjS4TAHSvVt0EW3v/IdSX4xfknHNAdB04t89/1O/w1cDnyilFU="; 
-
-// นำรหัสจากขั้นตอนที่ 4 มาใส่
 const LINE_Group_Id = "C8d92d6c426766edb968dabcb780d4c39"; 
 
 const app = initializeApp(firebaseConfig);
@@ -73,7 +70,8 @@ const db = getFirestore(app);
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
-type ReporterType = 'student' | 'lecturer';
+// อัปเดต Type ให้มี 'other'
+type ReporterType = 'lecturer' | 'student' | 'other';
 
 interface Issue {
   id: string;
@@ -150,10 +148,49 @@ export default function App() {
     category: 'Visual',
     description: '',
     reporter: '',
-    reporterType: 'student' as ReporterType,
+    // ตั้งค่าเริ่มต้นเป็น lecturer (อาจารย์) ตามลำดับใหม่
+    reporterType: 'lecturer' as ReporterType,
     phone: '',
     urgency: 'medium' as Urgency,
   });
+
+  // --- 🛡️ Input Validation & Sanitization ---
+  // ฟังก์ชันกรองเฉพาะตัวเลข (สำหรับห้องเรียน)
+  const handleRoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Regex: อนุญาตเฉพาะตัวเลข 0-9 เท่านั้น
+    if (value === '' || /^[0-9]+$/.test(value)) {
+      setFormData({ ...formData, room: value });
+    }
+  };
+
+  // ฟังก์ชันกรองเฉพาะตัวเลข (สำหรับเบอร์โทร)
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Regex: อนุญาตเฉพาะตัวเลข 0-9 เท่านั้น และต้องไม่เกิน 10 ตัว
+    if ((value === '' || /^[0-9]+$/.test(value)) && value.length <= 10) {
+      setFormData({ ...formData, phone: value });
+    }
+  };
+
+  // ฟังก์ชันกรองเฉพาะตัวอักษร (ไทย/อังกฤษ) และช่องว่าง
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Regex: อนุญาตภาษาไทย (ก-๙), ภาษาอังกฤษ (a-z, A-Z), และช่องว่าง
+    if (value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(value)) {
+      setFormData({ ...formData, reporter: value });
+    }
+  };
+
+  // Helper สำหรับแปลงชื่อประเภทผู้แจ้งเป็นภาษาไทย
+  const getReporterLabel = (type: ReporterType) => {
+    switch(type) {
+      case 'lecturer': return 'อาจารย์';
+      case 'student': return 'นักศึกษา';
+      case 'other': return 'อื่น ๆ';
+      default: return type;
+    }
+  };
 
   // --- ฟังก์ชันส่ง LINE Messaging API ---
   const sendLineMessage = async (issueData: any) => {
@@ -166,7 +203,7 @@ export default function App() {
 🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})
 --------------------
 📍 *ห้อง:* ${issueData.room}
-👤 *ผู้แจ้ง:* ${issueData.reporter} (${issueData.reporterType === 'student' ? 'นักศึกษา' : 'อาจารย์'})
+👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})
 📞 *เบอร์:* ${issueData.phone}
 ⚠️ *ความเร่งด่วน:* ${
       issueData.urgency === 'high' ? '🔴 ด่วนมาก' : 
@@ -179,7 +216,6 @@ export default function App() {
 `;
 
     try {
-      // ใช้ CORS Proxy เพื่อยิงหา LINE Messaging API จากหน้าเว็บ
       await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
         method: 'POST',
         headers: {
@@ -290,28 +326,45 @@ export default function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // --- Validation (ตรวจสอบความถูกต้องก่อนส่ง) ---
+    // ตรวจสอบความยาวเบอร์โทร
+    if (formData.phone.length !== 10) {
+      alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+      return;
+    }
+
     setFormSubmitting(true);
+    
+    // --- Sanitization (ความปลอดภัยเพิ่มเติม) ---
+    // ลบช่องว่างหัวท้ายที่อาจเผลอพิมพ์มา
+    const cleanData = {
+      ...formData,
+      room: formData.room.trim(),
+      reporter: formData.reporter.trim(),
+      phone: formData.phone.trim(),
+      description: formData.description.trim(),
+    };
+
     try {
       const newIssue = {
         id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`,
-        ...formData,
+        ...cleanData,
         status: 'pending',
         timestamp: new Date(),
       };
       
-      // 1. บันทึกลง Firebase
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
-      
-      // 2. ส่งแจ้งเตือน LINE Messaging API
       await sendLineMessage(newIssue);
 
       setShowForm(false);
+      // รีเซ็ตค่าฟอร์มกลับเป็นค่าเริ่มต้น
       setFormData({ 
         room: '', 
         category: 'Visual', 
         description: '', 
         reporter: '', 
-        reporterType: 'student', 
+        reporterType: 'lecturer', 
         phone: '', 
         urgency: 'medium' 
       });
@@ -495,11 +548,25 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
-                      <input required type="text" placeholder="เช่น 942" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} />
+                      <input 
+                        required 
+                        type="text" 
+                        placeholder="เช่น 942" 
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                        value={formData.room} 
+                        onChange={handleRoomChange} // ใช้ฟังก์ชัน validation ใหม่
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">ผู้แจ้ง</label>
-                      <input required type="text" placeholder="ชื่อ-สกุล" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.reporter} onChange={e => setFormData({...formData, reporter: e.target.value})} />
+                      <input 
+                        required 
+                        type="text" 
+                        placeholder="ชื่อ-สกุล" 
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                        value={formData.reporter} 
+                        onChange={handleNameChange} // ใช้ฟังก์ชัน validation ใหม่
+                      />
                     </div>
                   </div>
 
@@ -514,6 +581,7 @@ export default function App() {
                           >
                             <option value="lecturer">อาจารย์</option>
                             <option value="student">นักศึกษา</option>
+                            <option value="other">อื่น ๆ</option> {/* เพิ่มตัวเลือก 'อื่น ๆ' */}
                           </select>
                           <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
                              <GraduationCap size={16} />
@@ -526,10 +594,11 @@ export default function App() {
                       <input 
                           required 
                           type="tel" 
+                          maxLength={10} // กำหนด UI ให้พิมพ์ได้ไม่เกิน 10 ตัว
                           placeholder="0xx-xxx-xxxx" 
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" 
                           value={formData.phone} 
-                          onChange={e => setFormData({...formData, phone: e.target.value})} 
+                          onChange={handlePhoneChange} // ใช้ฟังก์ชัน validation ใหม่สำหรับเบอร์โทร
                       />
                     </div>
                   </div>
@@ -666,10 +735,9 @@ export default function App() {
                         <div className="text-xs">
                            {issue.reporter} 
                            <span className="text-gray-400 ml-1">
-                             ({issue.reporterType === 'student' ? 'นักศึกษา' : 'อาจารย์'})
+                             ({getReporterLabel(issue.reporterType)})
                            </span>
                         </div>
-                        {/* แสดงเบอร์โทร */}
                         {issue.phone && (
                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                              <Phone size={10} /> {issue.phone}
