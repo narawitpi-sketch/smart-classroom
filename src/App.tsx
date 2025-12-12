@@ -21,7 +21,8 @@ import {
   Plus,
   BarChart3,
   LayoutGrid,
-  FileText
+  FileText,
+  Download // เพิ่มไอคอน Download
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -272,6 +273,51 @@ export default function App() {
     }, true);
   };
 
+  const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
+
+  // --- Export to Excel (CSV) ---
+  const handleExportCSV = () => {
+    // 1. เตรียมหัวตาราง
+    const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ'];
+    
+    // 2. แปลงข้อมูลเป็นแถว
+    const csvRows = issues.map(issue => {
+      const dateObj = issue.timestamp ? new Date(issue.timestamp.seconds * 1000) : null;
+      const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH') : '-';
+      const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH') : '-';
+      
+      // ฟังก์ชันช่วยใส่เครื่องหมายคำพูดครอบข้อความ เพื่อป้องกันเครื่องหมายคอมม่า (,) ในเนื้อหาทำลายรูปแบบ
+      const escape = (text: string) => `"${(text || '').replace(/"/g, '""')}"`;
+      
+      return [
+        escape(issue.id),
+        escape(dateStr),
+        escape(timeStr),
+        escape(issue.room),
+        escape(issue.reporter),
+        escape(getReporterLabel(issue.reporterType)),
+        escape(`'${issue.phone}`), // ใส่ ' นำหน้าเพื่อให้ Excel รู้ว่าเป็น Text ไม่ใช่ตัวเลข (กัน 0 หาย)
+        escape(issue.category),
+        escape(issue.description),
+        escape(issue.urgency),
+        escape(issue.status)
+      ].join(',');
+    });
+
+    // 3. รวมหัวตารางและเนื้อหา ใส่ BOM (\uFEFF) เพื่อให้รองรับภาษาไทย
+    const csvContent = '\uFEFF' + [headers, ...csvRows].join('\n');
+    
+    // 4. สร้างไฟล์และสั่งดาวน์โหลด
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `smart-classroom-report-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // --- Stats Calculation Logic ---
   const statsData = useMemo(() => {
     const stats = {
@@ -311,8 +357,6 @@ export default function App() {
     };
   }, [issues]);
 
-  const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
-  
   const sendLineMessage = async (issueData: any) => {
     if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) return;
     const messageText = `🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})\n--------------------\n📍 *ห้อง:* ${issueData.room}\n👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})\n📞 *เบอร์:* ${issueData.phone}\n⚠️ *ความเร่งด่วน:* ${issueData.urgency === 'high' ? '🔴 ด่วนมาก' : issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'}\n🛠 *ปัญหา:* ${issueData.category}\n📝 *รายละเอียด:* ${issueData.description}\n--------------------\nตรวจสอบ: https://smart-classroom-neon.vercel.app/`;
@@ -527,13 +571,22 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Issues (With Filter & Delete) --- */}
+            {/* --- TAB: Issues (With Filter & Delete & Export) --- */}
             {adminTab === 'issues' && (
               <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileText /> รายการแจ้งซ่อม</h1>
-                  {/* Filters */}
-                  <div className="flex gap-2 text-sm">
+                  <div className="flex flex-wrap gap-2 text-sm items-center">
+                    {/* ปุ่ม Export CSV */}
+                    <button 
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"
+                    >
+                      <Download size={16} /> ดาวน์โหลดรายงาน (CSV)
+                    </button>
+
+                    <div className="h-6 w-px bg-gray-300 mx-2 hidden md:block"></div>
+
                     <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
                       <option value="all">ทุกประเภทปัญหา</option>
                       {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
@@ -594,7 +647,7 @@ export default function App() {
               </div>
             )}
 
-            {/* --- TAB: Rooms (Manage Rooms) --- */}
+            {/* --- TAB 3: Rooms (Manage Rooms) --- */}
             {adminTab === 'rooms' && (
               <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
