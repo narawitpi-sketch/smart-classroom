@@ -22,7 +22,8 @@ import {
   BarChart3,
   LayoutGrid,
   FileText,
-  Download // เพิ่มไอคอน Download
+  Download,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -194,6 +195,13 @@ export default function App() {
   const [filterReporterType, setFilterReporterType] = useState<string>('all');
   const [newRoomName, setNewRoomName] = useState('');
 
+  // --- Export UI State ---
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exportCategory, setExportCategory] = useState('all');
+  const [exportReporterType, setExportReporterType] = useState('all');
+
   // User UI State
   const [showForm, setShowForm] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -206,6 +214,14 @@ export default function App() {
     phone: '',
     urgency: 'medium' as Urgency,
   });
+
+  const categories = [
+    { id: 'Visual', icon: Monitor, label: 'ภาพ/โปรเจคเตอร์' },
+    { id: 'Audio', icon: Speaker, label: 'เสียง/ไมโครโฟน' },
+    { id: 'Network', icon: Wifi, label: 'อินเทอร์เน็ต/Wi-Fi' },
+    { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ/ความสะอาด' },
+    { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
+  ];
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -275,18 +291,53 @@ export default function App() {
 
   const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
 
-  // --- Export to Excel (CSV) ---
+  // --- Export to Excel (CSV) with Filters ---
   const handleExportCSV = () => {
-    // 1. เตรียมหัวตาราง
+    // 1. กรองข้อมูลตามเงื่อนไข
+    const filteredIssues = issues.filter(issue => {
+      let isValid = true;
+
+      // กรองตามวันที่ (ถ้ามีการเลือก)
+      if (exportStartDate && issue.timestamp) {
+        const issueDate = new Date(issue.timestamp.seconds * 1000);
+        const start = new Date(exportStartDate);
+        start.setHours(0, 0, 0, 0); // เริ่มต้นวัน
+        if (issueDate < start) isValid = false;
+      }
+      if (exportEndDate && issue.timestamp) {
+        const issueDate = new Date(issue.timestamp.seconds * 1000);
+        const end = new Date(exportEndDate);
+        end.setHours(23, 59, 59, 999); // สิ้นสุดวัน
+        if (issueDate > end) isValid = false;
+      }
+
+      // กรองตามประเภทปัญหา
+      if (exportCategory !== 'all' && issue.category !== exportCategory) {
+        isValid = false;
+      }
+
+      // กรองตามประเภทผู้แจ้ง
+      if (exportReporterType !== 'all' && issue.reporterType !== exportReporterType) {
+        isValid = false;
+      }
+
+      return isValid;
+    });
+
+    if (filteredIssues.length === 0) {
+      fireAlert('ไม่พบข้อมูล', 'ไม่มีรายการที่ตรงกับเงื่อนไขที่เลือก', 'warning');
+      return;
+    }
+
+    // 2. เตรียมหัวตาราง
     const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ'];
     
-    // 2. แปลงข้อมูลเป็นแถว
-    const csvRows = issues.map(issue => {
+    // 3. แปลงข้อมูลเป็นแถว
+    const csvRows = filteredIssues.map(issue => {
       const dateObj = issue.timestamp ? new Date(issue.timestamp.seconds * 1000) : null;
       const dateStr = dateObj ? dateObj.toLocaleDateString('th-TH') : '-';
       const timeStr = dateObj ? dateObj.toLocaleTimeString('th-TH') : '-';
       
-      // ฟังก์ชันช่วยใส่เครื่องหมายคำพูดครอบข้อความ เพื่อป้องกันเครื่องหมายคอมม่า (,) ในเนื้อหาทำลายรูปแบบ
       const escape = (text: string) => `"${(text || '').replace(/"/g, '""')}"`;
       
       return [
@@ -296,7 +347,7 @@ export default function App() {
         escape(issue.room),
         escape(issue.reporter),
         escape(getReporterLabel(issue.reporterType)),
-        escape(`'${issue.phone}`), // ใส่ ' นำหน้าเพื่อให้ Excel รู้ว่าเป็น Text ไม่ใช่ตัวเลข (กัน 0 หาย)
+        escape(`'${issue.phone}`), 
         escape(issue.category),
         escape(issue.description),
         escape(issue.urgency),
@@ -304,10 +355,8 @@ export default function App() {
       ].join(',');
     });
 
-    // 3. รวมหัวตารางและเนื้อหา ใส่ BOM (\uFEFF) เพื่อให้รองรับภาษาไทย
     const csvContent = '\uFEFF' + [headers, ...csvRows].join('\n');
     
-    // 4. สร้างไฟล์และสั่งดาวน์โหลด
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -316,6 +365,8 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    setShowExportModal(false); // ปิด Popup เมื่อโหลดเสร็จ
   };
 
   // --- Stats Calculation Logic ---
@@ -403,18 +454,64 @@ export default function App() {
 
   if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" /></div>;
 
-  const categories = [
-    { id: 'Visual', icon: Monitor, label: 'ภาพ/โปรเจคเตอร์' },
-    { id: 'Audio', icon: Speaker, label: 'เสียง/ไมโครโฟน' },
-    { id: 'Network', icon: Wifi, label: 'อินเทอร์เน็ต/Wi-Fi' },
-    { id: 'Environment', icon: Thermometer, label: 'แอร์/ไฟ/ความสะอาด' },
-    { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
-  ];
-
   // --- RENDER ---
   return (
     <>
       <SweetAlert show={alertConfig.show} title={alertConfig.title} text={alertConfig.text} icon={alertConfig.icon} onConfirm={alertConfig.onConfirm} onCancel={alertConfig.onCancel} showCancel={alertConfig.showCancel} />
+
+      {/* --- Export Modal --- */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+             <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Download size={20} /> ดาวน์โหลดรายงาน</h3>
+                <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+             </div>
+             <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ตั้งแต่วันที่</label>
+                      <div className="relative">
+                         <input type="date" className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#66FF00]" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} />
+                         <CalendarIcon size={16} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+                      </div>
+                   </div>
+                   <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
+                      <div className="relative">
+                         <input type="date" className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-[#66FF00]" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} />
+                         <CalendarIcon size={16} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+                      </div>
+                   </div>
+                </div>
+                
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทปัญหา</label>
+                   <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none" value={exportCategory} onChange={e => setExportCategory(e.target.value)}>
+                      <option value="all">ทั้งหมด</option>
+                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
+                   </select>
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
+                   <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none" value={exportReporterType} onChange={e => setExportReporterType(e.target.value)}>
+                      <option value="all">ทั้งหมด</option>
+                      <option value="lecturer">อาจารย์</option>
+                      <option value="student">นักศึกษา</option>
+                      <option value="other">อื่น ๆ</option>
+                   </select>
+                </div>
+                
+                <div className="pt-2">
+                   <button onClick={handleExportCSV} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold py-3 rounded-xl shadow-md transition flex justify-center items-center gap-2">
+                      <Download size={20} /> ยืนยันการดาวน์โหลด
+                   </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* --- View: Login Admin --- */}
       {role === 'login_admin' && (
@@ -577,12 +674,12 @@ export default function App() {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileText /> รายการแจ้งซ่อม</h1>
                   <div className="flex flex-wrap gap-2 text-sm items-center">
-                    {/* ปุ่ม Export CSV */}
+                    {/* ปุ่ม Export CSV - เปลี่ยนให้เปิด Modal */}
                     <button 
-                      onClick={handleExportCSV}
+                      onClick={() => setShowExportModal(true)}
                       className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"
                     >
-                      <Download size={16} /> ดาวน์โหลดรายงาน (CSV)
+                      <Download size={16} /> ดาวน์โหลดรายงาน
                     </button>
 
                     <div className="h-6 w-px bg-gray-300 mx-2 hidden md:block"></div>
