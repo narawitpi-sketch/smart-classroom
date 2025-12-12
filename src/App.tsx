@@ -23,7 +23,8 @@ import {
   LayoutGrid,
   FileText,
   Download,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Menu // ไอคอนเมนู (Hamburger)
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -167,6 +168,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State สำหรับ Sidebar มือถือ
 
   // --- Alert State ---
   const [alertConfig, setAlertConfig] = useState<any>({ show: false, title: '', text: '', icon: 'success', onConfirm: () => {}, showCancel: false });
@@ -181,7 +183,16 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth).catch(console.error); };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoadingAuth(false); });
+    
+    // --- ✅ แก้ปัญหา Auto Login: ตรวจสอบสิทธิ์ทันทีเมื่อโหลดหน้า ---
+    const unsubscribe = onAuthStateChanged(auth, (u) => { 
+      setUser(u); 
+      // ถ้ามี user และเป็นคนใน allowlist ให้เด้งไปหน้า staff เลย
+      if (u && !u.isAnonymous && u.email && ALLOWED_ADMIN_EMAILS.includes(u.email)) {
+        setRole('staff');
+      }
+      setLoadingAuth(false); 
+    });
     return () => unsubscribe();
   }, []);
 
@@ -260,6 +271,7 @@ export default function App() {
       await signOut(auth);
       await signInAnonymously(auth);
       setRole('guest');
+      setIsSidebarOpen(false);
     } catch (error) { console.error("Logout error:", error); }
   };
 
@@ -369,6 +381,7 @@ export default function App() {
     });
 
     const formatForChart = (obj: Record<string, number>) => Object.entries(obj).map(([label, value]) => ({ label, value }));
+
     const sortedDaily = formatForChart(stats.daily).slice(0, 7);
 
     return {
@@ -459,7 +472,6 @@ export default function App() {
                       </div>
                    </div>
                 </div>
-                
                 <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">ประเภทปัญหา</label>
                    <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none" value={exportCategory} onChange={e => setExportCategory(e.target.value)}>
@@ -467,7 +479,6 @@ export default function App() {
                       {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                    </select>
                 </div>
-
                 <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
                    <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none" value={exportReporterType} onChange={e => setExportReporterType(e.target.value)}>
@@ -477,7 +488,6 @@ export default function App() {
                       <option value="other">อื่น ๆ</option>
                    </select>
                 </div>
-                
                 <div className="pt-2">
                    <button onClick={handleExportCSV} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold py-3 rounded-xl shadow-md transition flex justify-center items-center gap-2">
                       <Download size={20} /> ยืนยันการดาวน์โหลด
@@ -626,39 +636,64 @@ export default function App() {
       {/* --- View: Staff / Admin Dashboard --- */}
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
-          <aside className="bg-white w-full md:w-64 md:h-screen shadow-lg z-20 flex-shrink-0 flex flex-col">
-            <div className="p-6 border-b flex items-center gap-3">
-              <div className="bg-[#66FF00] p-2 rounded-lg text-black"><Monitor size={24} /></div>
-              <div><span className="font-bold text-xl tracking-tight text-gray-900 block">SmartClass</span><span className="text-xs text-gray-500 font-medium tracking-wide">ADMIN</span></div>
+          
+          {/* --- ✅ 1. Mobile Header & Hamburger Menu --- */}
+          <div className="md:hidden bg-white p-4 border-b flex justify-between items-center sticky top-0 z-40 shadow-sm">
+            <div className="flex items-center gap-2 text-black font-bold text-lg">
+              <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>
+              SmartClass Admin
             </div>
-            <nav className="flex-1 p-4 space-y-2">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Menu</div>
-              <button onClick={() => setAdminTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'dashboard' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutGrid size={20} /> ภาพรวม (Dashboard)</button>
-              <button onClick={() => setAdminTab('issues')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'issues' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /> จัดการการแจ้งซ่อม</button>
-              <button onClick={() => setAdminTab('rooms')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'rooms' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><Monitor size={20} /> จัดการห้องเรียน</button>
-            </nav>
-            <div className="p-4 border-t space-y-4">
-              {/* --- แสดงโปรไฟล์ Admin --- */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border border-gray-300">
-                  {user?.photoURL ? (
-                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-black text-[#66FF00] font-bold">
-                      {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'AD'}
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-600 rounded-lg hover:bg-gray-100">
+              <Menu size={24} />
+            </button>
+          </div>
+
+          {/* --- ✅ 1. Responsive Sidebar --- */}
+          <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="h-full flex flex-col">
+               {/* Mobile Close Button */}
+               <div className="md:hidden p-4 flex justify-end">
+                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+               </div>
+
+               <div className="p-6 border-b flex items-center gap-3 hidden md:flex">
+                  <div className="bg-[#66FF00] p-2 rounded-lg text-black"><Monitor size={24} /></div>
+                  <div><span className="font-bold text-xl tracking-tight text-gray-900 block">SmartClass</span><span className="text-xs text-gray-500 font-medium tracking-wide">ADMIN</span></div>
+               </div>
+
+               <nav className="flex-1 p-4 space-y-2">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Menu</div>
+                  <button onClick={() => { setAdminTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'dashboard' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutGrid size={20} /> ภาพรวม</button>
+                  <button onClick={() => { setAdminTab('issues'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'issues' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /> รายการแจ้งซ่อม</button>
+                  <button onClick={() => { setAdminTab('rooms'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'rooms' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><Monitor size={20} /> จัดการห้องเรียน</button>
+               </nav>
+
+               <div className="p-4 border-t space-y-4">
+                  {/* --- ✅ 3. แสดงโปรไฟล์จริงจาก Google --- */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border border-gray-300">
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-black text-[#66FF00] font-bold">
+                          {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'AD'}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-sm font-semibold truncate">{user?.displayName || 'Admin Staff'}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email || 'IT Dept'}</p>
-                </div>
-              </div>
-              <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm">
-                <LogOut size={16} /> ออกจากระบบ
-              </button>
+                    <div className="overflow-hidden">
+                      <p className="text-sm font-semibold truncate">{user?.displayName || 'Admin Staff'}</p>
+                      <p className="text-xs text-gray-500 truncate">{user?.email || 'IT Dept'}</p>
+                    </div>
+                  </div>
+                  <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm">
+                    <LogOut size={16} /> ออกจากระบบ
+                  </button>
+               </div>
             </div>
           </aside>
+
+          {/* Overlay สำหรับมือถือ */}
+          {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
 
           <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
             {/* --- TAB: Dashboard --- */}
@@ -681,7 +716,6 @@ export default function App() {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><FileText /> รายการแจ้งซ่อม</h1>
                   <div className="flex flex-wrap gap-2 text-sm items-center">
-                    {/* ปุ่ม Export CSV - เปลี่ยนให้เปิด Modal */}
                     <button 
                       onClick={() => setShowExportModal(true)}
                       className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"
@@ -737,7 +771,6 @@ export default function App() {
                                <div className="flex justify-end gap-2">
                                 {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded tooltip" title="รับงาน"><Wrench size={16} /></button>}
                                 {issue.status === 'in-progress' && <button onClick={() => handleStatusChange(issue.docId, 'completed')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded" title="ปิดงาน"><CheckCircle size={16} /></button>}
-                                {/* ปุ่มลบ (ถังขยะ) */}
                                 <button onClick={() => handleDeleteIssue(issue.docId!)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded" title="ลบรายการ"><Trash2 size={16} /></button>
                                </div>
                             </td>
@@ -756,7 +789,6 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการรายชื่อห้องเรียน</h1>
                 
-                {/* Form เพิ่มห้อง */}
                 <form onSubmit={handleAddRoom} className="bg-white p-6 rounded-xl shadow-sm border flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อห้อง / เลขห้อง</label>
@@ -773,7 +805,6 @@ export default function App() {
                   </button>
                 </form>
 
-                {/* รายชื่อห้อง */}
                 <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                   <div className="px-6 py-4 bg-gray-50 border-b font-medium text-gray-700">รายชื่อห้องทั้งหมด ({rooms.length})</div>
                   <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
