@@ -27,7 +27,8 @@ import {
   Star,
   Heart,
   Briefcase,
-  Smile
+  Smile,
+  ClipboardCheck // ไอคอนผลประเมิน
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -79,7 +80,7 @@ type Role = 'guest' | 'reporter' | 'staff' | 'login_admin';
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms';
+type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks'; // เพิ่ม Tab feedbacks
 
 interface Issue {
   id: string;
@@ -98,6 +99,25 @@ interface Issue {
 interface Room {
   id: string;
   name: string;
+}
+
+interface Feedback {
+  id?: string;
+  gender: string;
+  status: string;
+  age: string;
+  // System 4.1 - 4.3
+  r_sys_easy: number;
+  r_sys_complete: number;
+  r_sys_speed: number;
+  // Service 5.1 - 5.6
+  r_svc_contact: number;
+  r_svc_start: number;
+  r_svc_skill: number;
+  r_svc_polite: number;
+  r_svc_result: number;
+  r_svc_overall: number;
+  timestamp: any;
 }
 
 const CATEGORIES = [
@@ -159,19 +179,20 @@ const StatusBadge = ({ status }: { status: Status }) => {
   return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
 };
 
-const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label: string, value: number }[], title: string, color?: string }) => {
+// Simple Bar Chart
+const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false }: { data: { label: string, value: number }[], title: string, color?: string, horizontal?: boolean }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-full">
       <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 size={20} className="text-gray-400" /> {title}</h3>
       <div className="space-y-4">
         {data.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-3 text-sm">
-            <div className="w-24 text-gray-500 truncate text-right font-medium">{item.label}</div>
-            <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / maxValue) * 100}%` }}></div>
+          <div key={idx} className={`flex ${horizontal ? 'flex-row items-center gap-3' : 'flex-col gap-1'} text-sm`}>
+            <div className={`${horizontal ? 'w-48 text-right' : 'w-full'} text-gray-500 truncate font-medium`} title={item.label}>{item.label}</div>
+            <div className={`flex-1 ${horizontal ? 'h-3' : 'h-2 w-full'} bg-gray-100 rounded-full overflow-hidden`}>
+              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? maxValue : 5)) * 100}%` }}></div>
             </div>
-            <div className="w-8 text-right font-bold text-gray-700">{item.value}</div>
+            <div className={`${horizontal ? 'w-8 text-right' : 'w-full text-right'} font-bold text-gray-700`}>{item.value.toFixed(1)}</div>
           </div>
         ))}
         {data.length === 0 && <div className="text-center text-gray-400 py-4">ไม่มีข้อมูล</div>}
@@ -180,46 +201,89 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label:
   );
 };
 
+// ==========================================
+// 3. NEW COMPONENT: FeedbackModal (Updated)
+// ==========================================
+
 const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
-  const [data, setData] = useState({ gender: '', status: '', age: '', ratingSystem: 0, ratingService: 0 });
+  const [data, setData] = useState<Partial<Feedback>>({
+    gender: '', status: '', age: '',
+    r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
+    r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0
+  });
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (!data.gender || !data.status || !data.age || data.ratingSystem === 0 || data.ratingService === 0) {
-      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+    // Check all fields
+    const requiredFields = ['gender', 'status', 'age'];
+    const ratingFields = ['r_sys_easy', 'r_sys_complete', 'r_sys_speed', 'r_svc_contact', 'r_svc_start', 'r_svc_skill', 'r_svc_polite', 'r_svc_result', 'r_svc_overall'];
+    
+    // @ts-ignore
+    const isMissing = requiredFields.some(f => !data[f]) || ratingFields.some(f => !data[f]);
+
+    if (isMissing) {
+      alert("กรุณากรอกข้อมูลและให้คะแนนให้ครบทุกข้อ");
       return;
     }
     onSubmit(data);
   };
 
-  const StarRating = ({ value, onChange, label }: any) => (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+  const StarRating = ({ value, onChange, label, subLabel }: any) => (
+    <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+      <label className="block font-semibold text-gray-800 mb-1">{label}</label>
+      <p className="text-xs text-gray-500 mb-3">{subLabel}</p>
       <div className="flex gap-2 justify-center">
         {[1, 2, 3, 4, 5].map((star) => (
-          <button key={star} type="button" onClick={() => onChange(star)} className={`transition-transform hover:scale-110 ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}>
-            <Star size={32} />
+          <button key={star} type="button" onClick={() => onChange(star)} className={`transition-transform hover:scale-110 focus:outline-none ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}>
+            <Star size={28} />
           </button>
         ))}
       </div>
+      <div className="text-center text-xs text-gray-400 mt-1">{value > 0 ? `${value} คะแนน` : 'ยังไม่ระบุ'}</div>
     </div>
   );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="bg-[#66FF00] p-4 flex justify-between items-center text-black shrink-0">
-          <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={24}/> ประเมินความพึงพอใจ</h3>
+          <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={24}/> แบบประเมินความพึงพอใจ</h3>
           <button onClick={onClose}><X size={24} /></button>
         </div>
+        
         <div className="p-6 overflow-y-auto custom-scrollbar">
-          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><UserIcon size={18}/> 1. เพศ</h4><div className="grid grid-cols-2 gap-3">{['ชาย', 'หญิง'].map(g => (<button key={g} onClick={() => setData({...data, gender: g})} className={`p-3 rounded-xl border-2 flex items-center justify-center gap-2 transition ${data.gender === g ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}>{g === 'ชาย' ? <UserIcon size={20}/> : <Heart size={20}/>} {g}</button>))}</div></div>
-          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Briefcase size={18}/> 2. สถานะ</h4><div className="grid grid-cols-3 gap-3">{[{ label: 'อาจารย์', icon: Briefcase }, { label: 'นักศึกษา', icon: GraduationCap }, { label: 'อื่นๆ', icon: UserIcon }].map(s => (<button key={s.label} onClick={() => setData({...data, status: s.label})} className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition text-sm ${data.status === s.label ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}><s.icon size={20}/> {s.label}</button>))}</div></div>
-          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Clock size={18}/> 3. ช่วงอายุ</h4><div className="flex flex-wrap gap-2">{['18-25 ปี', '26-35 ปี', '36-45 ปี', '46-55 ปี', '> 55 ปี'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`px-4 py-2 rounded-full border text-sm transition ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{a}</button>))}</div></div>
-          <hr className="my-6 border-dashed border-gray-200"/>
-          <div className="text-center"><StarRating label="4.1 ความพึงพอใจต่อระบบแจ้งซ่อม" value={data.ratingSystem} onChange={(v: number) => setData({...data, ratingSystem: v})} /><StarRating label="4.2 ความพึงพอใจต่อการให้บริการ" value={data.ratingService} onChange={(v: number) => setData({...data, ratingService: v})} /></div>
-          <button onClick={handleSubmit} className="w-full mt-6 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95">ส่งแบบประเมิน</button>
+          {/* ข้อมูลทั่วไป */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+             <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">1. เพศ</h4><div className="grid grid-cols-2 gap-2">{['ชาย', 'หญิง'].map(g => (<button key={g} onClick={() => setData({...data, gender: g})} className={`p-2 rounded-lg border text-sm ${data.gender === g ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{g}</button>))}</div></div>
+             <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">2. สถานะ</h4><div className="grid grid-cols-2 gap-2">{['อาจารย์', 'นักศึกษา', 'อื่นๆ'].map(s => (<button key={s} onClick={() => setData({...data, status: s})} className={`p-2 rounded-lg border text-sm ${data.status === s ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{s}</button>))}</div></div>
+             <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">3. อายุ</h4><div className="grid grid-cols-2 gap-2">{['18-25', '26-35', '36-45', '46-55', '> 55'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`p-2 rounded-lg border text-sm ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{a} ปี</button>))}</div></div>
+          </div>
+
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">4. ความพึงพอใจต่อระบบแจ้งซ่อม</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <StarRating label="4.1 การใช้งาน (User Friendliness)" subLabel="เข้าถึงง่าย ขั้นตอนน้อย ปุ่มชัดเจน" value={data.r_sys_easy} onChange={(v: number) => setData({...data, r_sys_easy: v})} />
+                <StarRating label="4.2 ความครบถ้วนของข้อมูล" subLabel="มีช่องให้ระบุข้อมูลครบถ้วน" value={data.r_sys_complete} onChange={(v: number) => setData({...data, r_sys_complete: v})} />
+                <StarRating label="4.3 การตอบสนองของระบบ" subLabel="โหลดเร็ว ไม่ค้าง ไม่ error" value={data.r_sys_speed} onChange={(v: number) => setData({...data, r_sys_speed: v})} />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">5. ความพึงพอใจต่อการให้บริการ</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <StarRating label="5.1 ความรวดเร็วในการติดต่อกลับ" subLabel="เจ้าหน้าที่รับเรื่องรวดเร็ว" value={data.r_svc_contact} onChange={(v: number) => setData({...data, r_svc_contact: v})} />
+                <StarRating label="5.2 ความรวดเร็วในการเข้าซ่อม" subLabel="เริ่มดำเนินการแก้ไขรวดเร็ว" value={data.r_svc_start} onChange={(v: number) => setData({...data, r_svc_start: v})} />
+                <StarRating label="5.3 ความสามารถของเจ้าหน้าที่" subLabel="ทักษะในการแก้ไขปัญหา" value={data.r_svc_skill} onChange={(v: number) => setData({...data, r_svc_skill: v})} />
+                <StarRating label="5.4 ความสุภาพและการสื่อสาร" subLabel="พูดจาสุภาพ เข้าใจง่าย" value={data.r_svc_polite} onChange={(v: number) => setData({...data, r_svc_polite: v})} />
+                <StarRating label="5.5 ผลลัพธ์ของการซ่อม" subLabel="ใช้งานได้ปกติ ไม่พังซ้ำ" value={data.r_svc_result} onChange={(v: number) => setData({...data, r_svc_result: v})} />
+                <StarRating label="5.6 ความพึงพอใจโดยรวม" subLabel="ภาพรวมการให้บริการ" value={data.r_svc_overall} onChange={(v: number) => setData({...data, r_svc_overall: v})} />
+              </div>
+            </div>
+          </div>
+
+          <button onClick={handleSubmit} className="w-full mt-8 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95 text-lg">ยืนยันการประเมิน</button>
         </div>
       </div>
     </div>
@@ -227,7 +291,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
 };
 
 // ==========================================
-// 3. SUB-VIEWS
+// 4. SUB-VIEWS
 // ==========================================
 
 const LoginScreen = ({ onGoogleLogin, onBack, isLoggingIn }: any) => (
@@ -389,7 +453,8 @@ export default function App() {
   
   // Data State
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]); 
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]); 
   const [formSubmitting, setFormSubmitting] = useState(false);
   
   // Admin State
@@ -455,7 +520,18 @@ export default function App() {
       fetchedRooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       setRooms(fetchedRooms);
     });
-    return () => { unsubIssues(); unsubRooms(); };
+
+    // Fetch Feedbacks if staff
+    let unsubFeedbacks = () => {};
+    if (role === 'staff') {
+      const qFeedbacks = collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedbacks');
+      unsubFeedbacks = onSnapshot(qFeedbacks, (snapshot) => {
+        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Feedback[];
+        setFeedbacks(fetched);
+      });
+    }
+
+    return () => { unsubIssues(); unsubRooms(); unsubFeedbacks(); };
   }, [user, role]);
 
   // Actions
@@ -573,6 +649,31 @@ export default function App() {
     }
   };
 
+  const handleExportFeedbackCSV = () => {
+    if (feedbacks.length === 0) { fireAlert('ไม่พบข้อมูล', 'ยังไม่มีการประเมิน', 'warning'); return; }
+
+    const headers = [
+      'วันที่', 'เพศ', 'สถานะ', 'อายุ',
+      '4.1 ง่ายต่อการใช้งาน', '4.2 ข้อมูลครบถ้วน', '4.3 ความเร็วระบบ',
+      '5.1 การติดต่อกลับ', '5.2 ความเร็วเข้าซ่อม', '5.3 ความสามารถช่าง', '5.4 ความสุภาพ', '5.5 ผลลัพธ์', '5.6 ภาพรวม'
+    ];
+
+    const csvRows = feedbacks.map(f => {
+      const d = f.timestamp ? new Date(f.timestamp.seconds * 1000) : null;
+      return [
+        `"${d?.toLocaleDateString('th-TH') || '-'}"`, `"${f.gender}"`, `"${f.status}"`, `"${f.age}"`,
+        f.r_sys_easy, f.r_sys_complete, f.r_sys_speed,
+        f.r_svc_contact, f.r_svc_start, f.r_svc_skill, f.r_svc_polite, f.r_svc_result, f.r_svc_overall
+      ].join(',');
+    });
+
+    const blob = new Blob(['\uFEFF' + [headers, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `feedback-report-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  };
+
   const handleStaffClick = () => {
     if (user && !user.isAnonymous && user.email && ALLOWED_ADMIN_EMAILS.includes(user.email)) {
       setRole('staff');
@@ -602,6 +703,25 @@ export default function App() {
     const sortedDaily = fmt(stats.daily).slice(0, 7); 
     return { daily: sortedDaily, monthly: fmt(stats.monthly), yearly: fmt(stats.yearly), byCategory: fmt(stats.byCategory), byReporter: fmt(stats.byReporter) };
   }, [issues]);
+
+  // Feedback Stats Logic
+  const feedbackStats = useMemo(() => {
+    if (feedbacks.length === 0) return null;
+    const total = feedbacks.length;
+    const avg = (key: keyof Feedback) => (feedbacks.reduce((acc, curr) => acc + (curr[key] as number || 0), 0) / total).toFixed(2);
+    
+    return [
+      { label: '4.1 ใช้งานง่าย', value: parseFloat(avg('r_sys_easy')) },
+      { label: '4.2 ข้อมูลครบ', value: parseFloat(avg('r_sys_complete')) },
+      { label: '4.3 ระบบเร็ว', value: parseFloat(avg('r_sys_speed')) },
+      { label: '5.1 ติดต่อกลับเร็ว', value: parseFloat(avg('r_svc_contact')) },
+      { label: '5.2 เข้าซ่อมเร็ว', value: parseFloat(avg('r_svc_start')) },
+      { label: '5.3 ทักษะช่าง', value: parseFloat(avg('r_svc_skill')) },
+      { label: '5.4 ความสุภาพ', value: parseFloat(avg('r_svc_polite')) },
+      { label: '5.5 ผลลัพธ์', value: parseFloat(avg('r_svc_result')) },
+      { label: '5.6 ภาพรวม', value: parseFloat(avg('r_svc_overall')) },
+    ];
+  }, [feedbacks]);
 
   if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" /></div>;
 
@@ -660,6 +780,7 @@ export default function App() {
                    <button onClick={() => { setAdminTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'dashboard' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutGrid size={20} /> ภาพรวม</button>
                    <button onClick={() => { setAdminTab('issues'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'issues' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /> รายการแจ้งซ่อม</button>
                    <button onClick={() => { setAdminTab('rooms'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'rooms' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><Monitor size={20} /> จัดการห้องเรียน</button>
+                   <button onClick={() => { setAdminTab('feedbacks'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'feedbacks' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><ClipboardCheck size={20} /> ผลการประเมิน</button>
                 </nav>
                 <div className="p-4 border-t"><button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm"><LogOut size={16} /> ออกจากระบบ</button></div>
              </div>
@@ -731,6 +852,42 @@ export default function App() {
                          {rooms.length === 0 && <div className="p-8 text-center text-gray-400">ยังไม่มีข้อมูลห้องเรียน</div>}
                       </div>
                    </div>
+                </div>
+             )}
+             {/* --- ✅ Feedback Tab --- */}
+             {adminTab === 'feedbacks' && (
+                <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ClipboardCheck /> ผลประเมินความพึงพอใจ</h1>
+                    <button onClick={handleExportFeedbackCSV} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                      <div className="flex items-center justify-between mb-4">
+                         <h3 className="font-bold text-lg text-gray-800">คะแนนเฉลี่ยรายข้อ</h3>
+                         <span className="text-sm text-gray-500">จากทั้งหมด {feedbacks.length} คน</span>
+                      </div>
+                      <div className="h-[400px] w-full">
+                         {feedbackStats ? (
+                            <SimpleBarChart data={feedbackStats} title="" horizontal />
+                         ) : (
+                            <div className="h-full flex items-center justify-center text-gray-400">ยังไม่มีข้อมูลการประเมิน</div>
+                         )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                       <h3 className="font-bold text-gray-800 mb-2">คะแนนความพึงพอใจภาพรวม</h3>
+                       <div className="text-6xl font-black text-[#66FF00] drop-shadow-sm mb-2">
+                         {feedbackStats ? feedbackStats[8].value.toFixed(1) : '0.0'}
+                       </div>
+                       <div className="flex gap-1 mb-4">
+                         {[1,2,3,4,5].map(s => <Star key={s} size={24} className={s <= (feedbackStats ? Math.round(feedbackStats[8].value) : 0) ? "text-yellow-400 fill-yellow-400" : "text-gray-200"} />)}
+                       </div>
+                       <p className="text-gray-500 text-sm">คะแนนเต็ม 5</p>
+                    </div>
+                  </div>
                 </div>
              )}
           </main>
