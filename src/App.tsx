@@ -1,23 +1,65 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Monitor, Wifi, Speaker, Thermometer, AlertCircle, Wrench, User as UserIcon, 
-  LogOut, Shield, CheckCircle, ArrowRight, Clock, Loader2, Lock, Phone, 
-  GraduationCap, X, Trash2, Plus, BarChart3, LayoutGrid, FileText, Download, 
-  Calendar as CalendarIcon, Menu, Star, Heart, Briefcase, Smile, ClipboardCheck,
-  Image as ImageIcon, ExternalLink
+  Monitor, 
+  Wifi, 
+  Speaker, 
+  Thermometer, 
+  AlertCircle,
+  Wrench,
+  User as UserIcon,
+  LogOut,
+  Shield,
+  CheckCircle,
+  ArrowRight,
+  Clock,
+  Loader2,
+  Lock,
+  Phone,
+  GraduationCap,
+  X,
+  Trash2,
+  Plus,
+  BarChart3,
+  LayoutGrid,
+  FileText,
+  Download,
+  Calendar as CalendarIcon,
+  Menu,
+  Star,
+  Heart,
+  Briefcase,
+  Smile,
+  ClipboardCheck,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, signInAnonymously, signInWithPopup, GoogleAuthProvider, signOut, 
-  onAuthStateChanged, type User 
+  getAuth, 
+  signInAnonymously, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged, 
+  type User
 } from 'firebase/auth';
 import { 
-  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc,
+  doc, 
+  onSnapshot
 } from 'firebase/firestore';
 import { 
-  getStorage, ref, uploadBytes, getDownloadURL, deleteObject 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject 
 } from 'firebase/storage';
 
 // ==========================================
@@ -135,8 +177,12 @@ const SweetAlert = ({ show, title, text, icon, onConfirm, onCancel, showCancel }
         <h3 className="text-2xl font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-gray-600 mb-6">{text}</p>
         <div className="flex gap-2">
-          {showCancel && <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>}
-          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>ตกลง</button>
+          {showCancel && (
+            <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>
+          )}
+          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>
+            ตกลง
+          </button>
         </div>
       </div>
     </div>
@@ -154,6 +200,7 @@ const StatusBadge = ({ status }: { status: Status }) => {
   return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
 };
 
+// Simple Bar Chart
 const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false }: { data: { label: string, value: number }[], title: string, color?: string, horizontal?: boolean }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
@@ -180,7 +227,6 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
 // ==========================================
 
 const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
-  // ✅ 2. แก้ปัญหาแบบประเมินไม่เคลียร์ค่า: รีเซ็ต data เมื่อ isOpen เป็น true
   const [data, setData] = useState<Partial<Feedback>>({
     gender: '', status: '', age: '',
     r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
@@ -430,6 +476,7 @@ const ReporterScreen = ({ rooms, onSubmit, onLogout, formSubmitting, fireAlert }
                   <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                 </div>
                 
+                {/* --- Image Upload Section --- */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
                   <div className="flex items-center gap-4">
