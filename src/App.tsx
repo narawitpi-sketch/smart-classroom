@@ -27,7 +27,7 @@ import {
   Star,
   Smile,
   ClipboardCheck,
-  Image as ImageIcon, // ไอคอนรูปภาพ
+  Image as ImageIcon // ไอคอนรูปภาพ
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -664,7 +664,7 @@ export default function App() {
         const issue = issues.find(i => i.docId === docId);
         if (issue && issue.imagePath) {
           const imageRef = ref(storage, issue.imagePath);
-          await deleteObject(imageRef).catch(err => console.log("Image already deleted or not found"));
+          await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
           // ลบ URL ออกจาก DB เพื่อไม่ให้แสดงผลอีก
           await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { imageUrl: null, imagePath: null });
         }
@@ -679,7 +679,7 @@ export default function App() {
         const issue = issues.find(i => i.docId === docId);
         if (issue && issue.imagePath) {
             const imageRef = ref(storage, issue.imagePath);
-            await deleteObject(imageRef).catch(err => console.log("Image already deleted"));
+            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
         }
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); 
       } 
