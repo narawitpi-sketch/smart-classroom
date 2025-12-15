@@ -1,4 +1,3 @@
-import React from 'react';
 import { Monitor, User as UserIcon, ArrowRight, Shield } from 'lucide-react';
 
 export const LandingScreen = ({ onReporterClick, onAdminClick }: any) => (

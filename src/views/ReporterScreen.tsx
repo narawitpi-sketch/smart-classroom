@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Monitor, LogOut, CheckCircle, Wrench, X, GraduationCap, Loader2, Speaker, Wifi, Thermometer, AlertCircle } from 'lucide-react';
-import { Room, ReporterType, Urgency } from '../utils/types';
+import { type Room, type ReporterType, type Urgency } from '../utils/types';
 import { db, APP_ID, sendLineMessage } from '../utils/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
@@ -12,13 +12,28 @@ const CATEGORIES = [
   { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
 ];
 
-export const ReporterScreen = ({ rooms, onLogout, fireAlert }: any) => {
+interface ReporterScreenProps {
+  rooms: Room[];
+  onLogout: () => void;
+  fireAlert: (title: string, text: string, icon: 'success' | 'error' | 'warning', onConfirm?: () => void) => void;
+}
+
+export const ReporterScreen = ({ rooms, onLogout, fireAlert }: ReporterScreenProps) => {
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer' as ReporterType, phone: '', urgency: 'medium' as Urgency,
   });
+
+  // Handlers
+  const handleRoomChange = (e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, room: e.target.value });
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+    if (e.target.value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(e.target.value)) setFormData({ ...formData, reporter: e.target.value }); 
+  };
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+    if ((e.target.value === '' || /^[0-9]+$/.test(e.target.value)) && e.target.value.length <= 10) setFormData({ ...formData, phone: e.target.value }); 
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +78,54 @@ export const ReporterScreen = ({ rooms, onLogout, fireAlert }: any) => {
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up text-left border-t-4 border-[#66FF00]">
               <div className="px-6 py-4 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-lg text-gray-800">แบบฟอร์มแจ้งปัญหา</h3><button onClick={() => setShowForm(false)}><X size={20} className="text-gray-400" /></button></div>
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {/* ... (Copy Form Inputs from previous App.tsx here) ... */}
-                {/* เพื่อความกระชับ ผมละส่วน Input ไว้ แต่ให้ใช้โค้ดชุดเดียวกับ App.tsx เดิมได้เลยครับ */}
-                {/* โดยเปลี่ยน handle ต่างๆ ให้เป็น local function ภายใน component นี้ */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ห้องเรียน</label>
+                    <select required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none bg-white" value={formData.room} onChange={handleRoomChange}>
+                      <option value="">-- เลือกห้อง --</option>
+                      {rooms.map((r: Room) => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ผู้แจ้ง</label>
+                    <input required type="text" placeholder="ชื่อ-สกุล" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.reporter} onChange={handleNameChange} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">สถานะผู้แจ้ง</label>
+                      <div className="relative">
+                        <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00] appearance-none" value={formData.reporterType} onChange={e => setFormData({...formData, reporterType: e.target.value as ReporterType})}>
+                          <option value="lecturer">อาจารย์</option><option value="student">นักศึกษา</option><option value="other">อื่น ๆ</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500"><GraduationCap size={16} /></div>
+                      </div>
+                    </div>
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
+                    <input required type="tel" maxLength={10} placeholder="0xx-xxx-xxxx" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none" value={formData.phone} onChange={handlePhoneChange} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                        <cat.icon size={20} /> {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
+                  <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
+                  <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
+                    <option value="low">ทั่วไป</option><option value="medium">ปานกลาง</option><option value="high">ด่วนมาก</option>
+                  </select>
+                </div>
                 <div className="pt-2"><button type="submit" disabled={formSubmitting} className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">{formSubmitting ? <Loader2 className="animate-spin" /> : 'ยืนยันการแจ้ง'}</button></div>
               </form>
             </div>
