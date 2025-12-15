@@ -25,8 +25,6 @@ import {
   Download,
   Menu,
   Star,
-  Heart,
-  Briefcase,
   Smile,
   ClipboardCheck // ไอคอนผลประเมิน
 } from 'lucide-react';
