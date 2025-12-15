@@ -1,54 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Monitor, 
-  Wifi, 
-  Speaker, 
-  Thermometer, 
-  AlertCircle,
-  Wrench,
-  User as UserIcon,
-  LogOut,
-  Shield,
-  CheckCircle,
-  ArrowRight,
-  Clock,
-  Loader2,
-  Lock,
-  Phone,
-  GraduationCap,
-  X,
-  Trash2,
-  Plus,
-  BarChart3,
-  LayoutGrid,
-  FileText,
-  Download,
-  Menu,
-  Star,
-  Smile,
-  ClipboardCheck // ไอคอนผลประเมิน
+  Monitor, Wifi, Speaker, Thermometer, AlertCircle, Wrench, User as UserIcon, 
+  LogOut, Shield, CheckCircle, ArrowRight, Clock, Loader2, Lock, Phone, 
+  GraduationCap, X, Trash2, Plus, BarChart3, LayoutGrid, FileText, Download, 
+  Calendar as CalendarIcon, Menu, Star, Heart, Briefcase, Smile, ClipboardCheck,
+  Image as ImageIcon, ExternalLink
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, 
-  signInAnonymously, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
-  onAuthStateChanged, 
-  type User
+  getAuth, signInAnonymously, signInWithPopup, GoogleAuthProvider, signOut, 
+  onAuthStateChanged, type User 
 } from 'firebase/auth';
 import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc,
-  doc, 
-  onSnapshot
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
 } from 'firebase/firestore';
+import { 
+  getStorage, ref, uploadBytes, getDownloadURL, deleteObject 
+} from 'firebase/storage';
 
 // ==========================================
 // 1. CONFIGURATION & UTILS
@@ -72,13 +42,14 @@ const LINE_GROUP_ID = "C8d92d6c426766edb968dabcb780d4c39";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // Types
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks'; // เพิ่ม Tab feedbacks
+type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks';
 
 interface Issue {
   id: string;
@@ -92,6 +63,8 @@ interface Issue {
   status: Status;
   timestamp: any;
   docId?: string;
+  imageUrl?: string;
+  imagePath?: string;
 }
 
 interface Room {
@@ -104,11 +77,9 @@ interface Feedback {
   gender: string;
   status: string;
   age: string;
-  // System 4.1 - 4.3
   r_sys_easy: number;
   r_sys_complete: number;
   r_sys_speed: number;
-  // Service 5.1 - 5.6
   r_svc_contact: number;
   r_svc_start: number;
   r_svc_skill: number;
@@ -126,17 +97,23 @@ const CATEGORIES = [
   { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
 ];
 
-// Helper Functions
 const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
 const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
 const sendLineMessage = async (issueData: any) => {
   if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) return;
+  
   const messageText = `🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})\n--------------------\n📍 *ห้อง:* ${issueData.room}\n👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})\n📞 *เบอร์:* ${issueData.phone}\n⚠️ *ความเร่งด่วน:* ${issueData.urgency === 'high' ? '🔴 ด่วนมาก' : issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'}\n🛠 *ปัญหา:* ${issueData.category}\n📝 *รายละเอียด:* ${issueData.description}\n--------------------\nตรวจสอบ: https://smart-classroom-neon.vercel.app/`;
+  
+  const messages: any[] = [{ type: "text", text: messageText.trim() }];
+  if (issueData.imageUrl) {
+    messages.push({ type: "image", originalContentUrl: issueData.imageUrl, previewImageUrl: issueData.imageUrl });
+  }
+
   try {
     await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
       method: 'POST', headers: { 'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: LINE_GROUP_ID, messages: [{ type: "text", text: messageText.trim() }] }),
+      body: JSON.stringify({ to: LINE_GROUP_ID, messages: messages }),
     });
   } catch (error) { console.error("Line Error", error); }
 };
@@ -177,7 +154,6 @@ const StatusBadge = ({ status }: { status: Status }) => {
   return <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status]}`}>{icons[status]}{labels[status]}</span>;
 };
 
-// Simple Bar Chart
 const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false }: { data: { label: string, value: number }[], title: string, color?: string, horizontal?: boolean }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1);
   return (
@@ -188,7 +164,7 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
           <div key={idx} className={`flex ${horizontal ? 'flex-row items-center gap-3' : 'flex-col gap-1'} text-sm`}>
             <div className={`${horizontal ? 'w-48 text-right' : 'w-full'} text-gray-500 truncate font-medium`} title={item.label}>{item.label}</div>
             <div className={`flex-1 ${horizontal ? 'h-3' : 'h-2 w-full'} bg-gray-100 rounded-full overflow-hidden`}>
-              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? maxValue : 5)) * 100}%` }}></div>
+              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? 5 : maxValue || 1)) * 100}%` }}></div>
             </div>
             <div className={`${horizontal ? 'w-8 text-right' : 'w-full text-right'} font-bold text-gray-700`}>{item.value.toFixed(1)}</div>
           </div>
@@ -200,23 +176,32 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
 };
 
 // ==========================================
-// 3. NEW COMPONENT: FeedbackModal (Updated)
+// 3. COMPONENTS: Modals
 // ==========================================
 
 const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
+  // ✅ 2. แก้ปัญหาแบบประเมินไม่เคลียร์ค่า: รีเซ็ต data เมื่อ isOpen เป็น true
   const [data, setData] = useState<Partial<Feedback>>({
     gender: '', status: '', age: '',
     r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
     r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      setData({
+        gender: '', status: '', age: '',
+        r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
+        r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0
+      });
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    // Check all fields
     const requiredFields = ['gender', 'status', 'age'];
     const ratingFields = ['r_sys_easy', 'r_sys_complete', 'r_sys_speed', 'r_svc_contact', 'r_svc_start', 'r_svc_skill', 'r_svc_polite', 'r_svc_result', 'r_svc_overall'];
-    
     // @ts-ignore
     const isMissing = requiredFields.some(f => !data[f]) || ratingFields.some(f => !data[f]);
 
@@ -251,7 +236,6 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
         </div>
         
         <div className="p-6 overflow-y-auto custom-scrollbar">
-          {/* ข้อมูลทั่วไป */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">1. เพศ</h4><div className="grid grid-cols-2 gap-2">{['ชาย', 'หญิง'].map(g => (<button key={g} onClick={() => setData({...data, gender: g})} className={`p-2 rounded-lg border text-sm ${data.gender === g ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{g}</button>))}</div></div>
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">2. สถานะ</h4><div className="grid grid-cols-2 gap-2">{['อาจารย์', 'นักศึกษา', 'อื่นๆ'].map(s => (<button key={s} onClick={() => setData({...data, status: s})} className={`p-2 rounded-lg border text-sm ${data.status === s ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{s}</button>))}</div></div>
@@ -267,7 +251,6 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
                 <StarRating label="4.3 การตอบสนองของระบบ" subLabel="โหลดเร็ว ไม่ค้าง ไม่ error" value={data.r_sys_speed} onChange={(v: number) => setData({...data, r_sys_speed: v})} />
               </div>
             </div>
-
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">5. ความพึงพอใจต่อการให้บริการ</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -280,7 +263,6 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
               </div>
             </div>
           </div>
-
           <button onClick={handleSubmit} className="w-full mt-8 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95 text-lg">ยืนยันการประเมิน</button>
         </div>
       </div>
@@ -337,20 +319,45 @@ const LandingScreen = ({ onReporterClick, onAdminClick, onFeedbackClick }: any) 
   </div>
 );
 
-const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, formSubmitting }: any) => {
+const ReporterScreen = ({ rooms, onSubmit, onLogout, formSubmitting, fireAlert }: any) => {
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // ✅ 1. แก้ปัญหาฟอร์มไม่เคลียร์: ย้าย State มาไว้ใน Component นี้
+  const [formData, setFormData] = useState({
+    room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer' as ReporterType, phone: '', urgency: 'medium' as Urgency,
+  });
 
   const handleRoomChange = (e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, room: e.target.value });
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(e.target.value)) setFormData({ ...formData, reporter: e.target.value }); };
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => { if ((e.target.value === '' || /^[0-9]+$/.test(e.target.value)) && e.target.value.length <= 10) setFormData({ ...formData, phone: e.target.value }); };
+  
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onSubmit();
+    // Validation
+    if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return; }
+    if (!formData.room) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณาเลือกห้องเรียน', 'warning'); return; }
+
+    const success = await onSubmit(formData, imageFile); // ส่งข้อมูลกลับไปให้ App
     if (success) {
       setShowForm(false);
       setShowSuccess(true);
+      // Reset Form
+      setFormData({ room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer', phone: '', urgency: 'medium' });
+      setImageFile(null);
+      setImagePreview(null);
     }
   };
 
@@ -422,6 +429,29 @@ const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, form
                   <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
                   <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
+                  <div className="flex items-center gap-4">
+                     <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg flex items-center gap-2 border border-gray-300 transition">
+                       <ImageIcon size={20} /> เลือกรูปภาพ
+                       <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                     </label>
+                     {imagePreview && (
+                       <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-300">
+                         <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                         <button 
+                           type="button"
+                           onClick={() => { setImageFile(null); setImagePreview(null); }}
+                           className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-full"
+                         >
+                           <X size={12} />
+                         </button>
+                       </div>
+                     )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
                   <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
@@ -439,7 +469,7 @@ const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, form
 };
 
 // ==========================================
-// 4. MAIN APP COMPONENT
+// 5. MAIN APP COMPONENT
 // ==========================================
 
 export default function App() {
@@ -471,11 +501,6 @@ export default function App() {
   // Feedback State
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer' as ReporterType, phone: '', urgency: 'medium' as Urgency,
-  });
-
   // Alert
   const [alertConfig, setAlertConfig] = useState<any>({ show: false, title: '', text: '', icon: 'success', onConfirm: () => {}, showCancel: false });
   const fireAlert = (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: () => void, showCancel = false) => {
@@ -490,12 +515,18 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth).catch(console.error); };
     initAuth();
+    
+    // --- ✅ 3. แก้ปัญหา Admin Refresh: เช็คสิทธิ์ในนี้เลยและ Set Role ให้เสร็จก่อนปิด Loading ---
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        if (!u.isAnonymous && u.email && ALLOWED_ADMIN_EMAILS.includes(u.email)) { setRole('staff'); }
-        setLoadingAuth(false);
-      } else { await signInAnonymously(auth); }
+        if (!u.isAnonymous && u.email && ALLOWED_ADMIN_EMAILS.includes(u.email)) {
+           setRole('staff'); 
+        }
+      } else { 
+        await signInAnonymously(auth); 
+      }
+      setLoadingAuth(false);
     });
     return () => unsubscribe();
   }, []);
@@ -534,7 +565,14 @@ export default function App() {
 
   // Actions
   const handleLogout = async () => {
-    try { await signOut(auth); await signInAnonymously(auth); setRole('guest'); setIsSidebarOpen(false); } 
+    try { 
+      await signOut(auth); 
+      // Force reset everything
+      setRole('guest'); 
+      setIsSidebarOpen(false); 
+      // Re-login anonymously immediately to prevent errors
+      await signInAnonymously(auth); 
+    } 
     catch (e) { console.error(e); }
   };
 
@@ -550,32 +588,70 @@ export default function App() {
     } finally { setIsLoggingIn(false); }
   };
 
-  const handleSubmit = async () => {
+  // ✅ Updated handleSubmit for new structure
+  const handleSubmit = async (data: any, imageFile: File | null) => {
     if (!user) return false;
-    if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return false; }
-    if (!formData.room) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณาเลือกห้องเรียน', 'warning'); return false; }
-
+    
     setFormSubmitting(true);
     try {
-      const cleanData = { ...formData, room: formData.room.trim(), reporter: formData.reporter.trim(), phone: formData.phone.trim(), description: formData.description.trim() };
-      const newIssue = { id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, ...cleanData, status: 'pending', timestamp: new Date() };
+      const cleanData = { ...data, room: data.room.trim(), reporter: data.reporter.trim(), phone: data.phone.trim(), description: data.description.trim() };
+      
+      let imageUrl = null;
+      let imagePath = null;
+      if (imageFile) {
+        // Compress image logic moved inside component in previous steps, here assuming file passed is valid
+        const storageRef = ref(storage, `images/${Date.now()}_${imageFile.name}`);
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
+        imagePath = snapshot.ref.fullPath;
+      }
+
+      const newIssue = { 
+        id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, 
+        ...cleanData, 
+        status: 'pending', 
+        timestamp: new Date(),
+        imageUrl,
+        imagePath
+      };
+      
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
       await sendLineMessage(newIssue);
+      
       setFormSubmitting(false);
-      setFormData({ room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer', phone: '', urgency: 'medium' });
       return true;
-    } catch (error) { fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้', 'error'); setFormSubmitting(false); return false; }
+    } catch (error) { 
+      fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้', 'error'); 
+      setFormSubmitting(false); 
+      return false; 
+    }
   };
 
-  // Admin Actions
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
-    try { await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus }); } catch (error) { console.error(error); }
+    try { 
+      await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus });
+      if (newStatus === 'completed') {
+        const issue = issues.find(i => i.docId === docId);
+        if (issue && issue.imagePath) {
+          const imageRef = ref(storage, issue.imagePath);
+          await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
+          await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { imageUrl: null, imagePath: null });
+        }
+      }
+    } catch (error) { console.error(error); }
   };
 
   const handleDeleteIssue = async (docId: string) => {
     fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้?', 'warning', async () => {
-      try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); } 
+      try { 
+        const issue = issues.find(i => i.docId === docId);
+        if (issue && issue.imagePath) {
+            const imageRef = ref(storage, issue.imagePath);
+            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
+        }
+        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); 
+      } 
       catch (error) { fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error'); }
     }, true);
   };
@@ -615,14 +691,14 @@ export default function App() {
 
     if (filteredIssues.length === 0) { fireAlert('ไม่พบข้อมูล', 'ไม่มีรายการตามเงื่อนไข', 'warning'); return; }
 
-    const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ'];
+    const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ,รูปภาพ'];
     const csvRows = filteredIssues.map(i => {
       const d = i.timestamp ? new Date(i.timestamp.seconds * 1000) : null;
       const esc = (t: string) => `"${(t || '').replace(/"/g, '""')}"`;
       return [
         esc(i.id), esc(d?.toLocaleDateString('th-TH')||'-'), esc(d?.toLocaleTimeString('th-TH')||'-'),
         esc(i.room), esc(i.reporter), esc(getReporterLabel(i.reporterType)), esc(`'${i.phone}`),
-        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status)
+        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status), esc(i.imageUrl || '-')
       ].join(',');
     });
 
@@ -750,7 +826,7 @@ export default function App() {
 
       {role === 'login_admin' && <LoginScreen onGoogleLogin={handleGoogleLogin} onBack={() => setRole('guest')} isLoggingIn={isLoggingIn} />}
       {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} />}
-      {role === 'reporter' && <ReporterScreen rooms={rooms} formData={formData} setFormData={setFormData} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} />}
+      {role === 'reporter' && <ReporterScreen rooms={rooms} formData={formData} setFormData={setFormData} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
       
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
@@ -818,7 +894,15 @@ export default function App() {
                                   <tr key={issue.docId} className="hover:bg-gray-50 transition">
                                      <td className="px-6 py-4"><div className="font-mono text-gray-500 text-xs">{formatDate(issue.timestamp)}</div><div className="font-bold text-indigo-600 text-base">{issue.room}</div></td>
                                      <td className="px-6 py-4"><div className="font-medium text-gray-900">{issue.reporter}</div><div className="text-xs text-gray-500">{getReporterLabel(issue.reporterType)}</div>{issue.phone && <div className="text-xs text-gray-400 mt-0.5"><Phone size={10} className="inline mr-1"/>{issue.phone}</div>}</td>
-                                     <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 border border-gray-200 mb-1 inline-block">{issue.category}</span><p className="truncate max-w-xs text-gray-800">{issue.description}</p></td>
+                                     <td className="px-6 py-4">
+                                       <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 border border-gray-200 mb-1 inline-block">{issue.category}</span>
+                                       <p className="truncate max-w-xs text-gray-800">{issue.description}</p>
+                                       {issue.imageUrl && (
+                                         <a href={issue.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                                           <ImageIcon size={12} /> ดูรูปภาพ
+                                         </a>
+                                       )}
+                                     </td>
                                      <td className="px-6 py-4"><StatusBadge status={issue.status} /></td>
                                      <td className="px-6 py-4 text-right"><div className="flex justify-end gap-2">
                                         {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId!, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded" title="รับงาน"><Wrench size={16} /></button>}
