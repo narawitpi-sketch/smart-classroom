@@ -25,9 +25,9 @@ import {
   Download,
   Calendar as CalendarIcon,
   Menu,
-  Star, // ไอคอนดาวสำหรับให้คะแนน
+  Star,
   Heart,
-  Briefcase, // ไอคอนอาจารย์/ทำงาน
+  Briefcase,
   Smile
 } from 'lucide-react';
 
@@ -101,7 +101,6 @@ interface Room {
   name: string;
 }
 
-// Data Categories
 const CATEGORIES = [
   { id: 'Visual', icon: Monitor, label: 'ภาพ/โปรเจคเตอร์' },
   { id: 'Audio', icon: Speaker, label: 'เสียง/ไมโครโฟน' },
@@ -110,6 +109,7 @@ const CATEGORIES = [
   { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
 ];
 
+// Helper Functions
 const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
 const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -181,19 +181,8 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500" }: { data: { label:
   );
 };
 
-// ==========================================
-// 3. NEW COMPONENT: FeedbackModal (ระบบประเมิน)
-// ==========================================
-
 const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState({
-    gender: '',
-    status: '',
-    age: '',
-    ratingSystem: 0,
-    ratingService: 0
-  });
+  const [data, setData] = useState({ gender: '', status: '', age: '', ratingSystem: 0, ratingService: 0 });
 
   if (!isOpen) return null;
 
@@ -210,12 +199,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
       <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
       <div className="flex gap-2 justify-center">
         {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => onChange(star)}
-            className={`transition-transform hover:scale-110 ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-          >
+          <button key={star} type="button" onClick={() => onChange(star)} className={`transition-transform hover:scale-110 ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}>
             <Star size={32} />
           </button>
         ))}
@@ -225,87 +209,18 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="bg-[#66FF00] p-4 flex justify-between items-center text-black">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="bg-[#66FF00] p-4 flex justify-between items-center text-black shrink-0">
           <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={24}/> ประเมินความพึงพอใจ</h3>
           <button onClick={onClose}><X size={24} /></button>
         </div>
-        
-        <div className="p-6 max-h-[80vh] overflow-y-auto">
-          {/* 1. เพศ */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><UserIcon size={18}/> 1. เพศ</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {['ชาย', 'หญิง'].map(g => (
-                <button
-                  key={g}
-                  onClick={() => setData({...data, gender: g})}
-                  className={`p-3 rounded-xl border-2 flex items-center justify-center gap-2 transition ${data.gender === g ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}
-                >
-                  {g === 'ชาย' ? <UserIcon size={20}/> : <Heart size={20}/>} {g}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. สถานะ */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Briefcase size={18}/> 2. สถานะ</h4>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'อาจารย์', icon: Briefcase },
-                { label: 'นักศึกษา', icon: GraduationCap },
-                { label: 'อื่นๆ', icon: UserIcon }
-              ].map(s => (
-                <button
-                  key={s.label}
-                  onClick={() => setData({...data, status: s.label})}
-                  className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition text-sm ${data.status === s.label ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}
-                >
-                  <s.icon size={20}/> {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. อายุ */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Clock size={18}/> 3. ช่วงอายุ</h4>
-            <div className="flex flex-wrap gap-2">
-              {['18-25 ปี', '26-35 ปี', '36-45 ปี', '46-55 ปี', '> 55 ปี'].map(a => (
-                <button
-                  key={a}
-                  onClick={() => setData({...data, age: a})}
-                  className={`px-4 py-2 rounded-full border text-sm transition ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><UserIcon size={18}/> 1. เพศ</h4><div className="grid grid-cols-2 gap-3">{['ชาย', 'หญิง'].map(g => (<button key={g} onClick={() => setData({...data, gender: g})} className={`p-3 rounded-xl border-2 flex items-center justify-center gap-2 transition ${data.gender === g ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}>{g === 'ชาย' ? <UserIcon size={20}/> : <Heart size={20}/>} {g}</button>))}</div></div>
+          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Briefcase size={18}/> 2. สถานะ</h4><div className="grid grid-cols-3 gap-3">{[{ label: 'อาจารย์', icon: Briefcase }, { label: 'นักศึกษา', icon: GraduationCap }, { label: 'อื่นๆ', icon: UserIcon }].map(s => (<button key={s.label} onClick={() => setData({...data, status: s.label})} className={`p-3 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition text-sm ${data.status === s.label ? 'border-[#66FF00] bg-[#66FF00]/10 text-green-800 font-bold' : 'border-gray-100 hover:bg-gray-50'}`}><s.icon size={20}/> {s.label}</button>))}</div></div>
+          <div className="mb-6"><h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2"><Clock size={18}/> 3. ช่วงอายุ</h4><div className="flex flex-wrap gap-2">{['18-25 ปี', '26-35 ปี', '36-45 ปี', '46-55 ปี', '> 55 ปี'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`px-4 py-2 rounded-full border text-sm transition ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{a}</button>))}</div></div>
           <hr className="my-6 border-dashed border-gray-200"/>
-
-          {/* 4. ข้อประเมิน */}
-          <div className="text-center">
-            <StarRating 
-              label="4.1 ความพึงพอใจต่อระบบแจ้งซ่อม (ใช้งานง่าย, สะดวก)" 
-              value={data.ratingSystem} 
-              onChange={(v: number) => setData({...data, ratingSystem: v})} 
-            />
-            <StarRating 
-              label="4.2 ความพึงพอใจต่อการให้บริการ (รวดเร็ว, แก้ปัญหาได้)" 
-              value={data.ratingService} 
-              onChange={(v: number) => setData({...data, ratingService: v})} 
-            />
-          </div>
-
-          <button 
-            onClick={handleSubmit}
-            className="w-full mt-6 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95"
-          >
-            ส่งแบบประเมิน
-          </button>
+          <div className="text-center"><StarRating label="4.1 ความพึงพอใจต่อระบบแจ้งซ่อม" value={data.ratingSystem} onChange={(v: number) => setData({...data, ratingSystem: v})} /><StarRating label="4.2 ความพึงพอใจต่อการให้บริการ" value={data.ratingService} onChange={(v: number) => setData({...data, ratingService: v})} /></div>
+          <button onClick={handleSubmit} className="w-full mt-6 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95">ส่งแบบประเมิน</button>
         </div>
       </div>
     </div>
@@ -313,7 +228,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
 };
 
 // ==========================================
-// 4. SUB-VIEWS (แยกส่วนหน้าจอ)
+// 3. SUB-VIEWS
 // ==========================================
 
 const LoginScreen = ({ onGoogleLogin, onBack, isLoggingIn }: any) => (
@@ -334,7 +249,6 @@ const LoginScreen = ({ onGoogleLogin, onBack, isLoggingIn }: any) => (
   </div>
 );
 
-// --- ✅ Updated Landing Screen with Feedback Button ---
 const LandingScreen = ({ onReporterClick, onAdminClick, onFeedbackClick }: any) => (
   <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center p-4 relative">
     <div className="max-w-4xl w-full text-center z-10">
@@ -355,7 +269,6 @@ const LandingScreen = ({ onReporterClick, onAdminClick, onFeedbackClick }: any) 
         </button>
       </div>
 
-      {/* ปุ่มประเมินความพึงพอใจ */}
       <button onClick={onFeedbackClick} className="inline-flex items-center gap-2 text-gray-500 hover:text-black bg-white px-6 py-3 rounded-full shadow-sm hover:shadow-md transition">
          <Smile size={20} className="text-[#66FF00] fill-current" /> ประเมินความพึงพอใจการใช้งาน
       </button>
@@ -511,6 +424,7 @@ export default function App() {
     });
   };
 
+  // Auth Effect
   useEffect(() => {
     const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth).catch(console.error); };
     initAuth();
@@ -524,6 +438,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Data Fetching Effect
   useEffect(() => {
     if (!user) return;
     if (role === 'guest') return;
@@ -544,6 +459,7 @@ export default function App() {
     return () => { unsubIssues(); unsubRooms(); };
   }, [user, role]);
 
+  // Actions
   const handleLogout = async () => {
     try { await signOut(auth); await signInAnonymously(auth); setRole('guest'); setIsSidebarOpen(false); } 
     catch (e) { console.error(e); }
@@ -578,6 +494,7 @@ export default function App() {
     } catch (error) { fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้', 'error'); setFormSubmitting(false); return false; }
   };
 
+  // Admin Actions
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
     try { await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus }); } catch (error) { console.error(error); }
@@ -654,6 +571,14 @@ export default function App() {
       fireAlert('ขอบคุณ', 'ขอบคุณสำหรับการประเมินครับ', 'success');
     } catch (e) {
       fireAlert('ผิดพลาด', 'ไม่สามารถส่งแบบประเมินได้', 'error');
+    }
+  };
+
+  const handleStaffClick = () => {
+    if (user && !user.isAnonymous && user.email && ALLOWED_ADMIN_EMAILS.includes(user.email)) {
+      setRole('staff');
+    } else {
+      setRole('login_admin');
     }
   };
 
