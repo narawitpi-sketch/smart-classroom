@@ -23,15 +23,11 @@ import {
   LayoutGrid,
   FileText,
   Download,
-  Calendar as CalendarIcon,
   Menu,
   Star,
-  Heart,
-  Briefcase,
   Smile,
   ClipboardCheck,
-  Image as ImageIcon,
-  ExternalLink
+  Image as ImageIcon
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -873,7 +869,6 @@ export default function App() {
 
       {role === 'login_admin' && <LoginScreen onGoogleLogin={handleGoogleLogin} onBack={() => setRole('guest')} isLoggingIn={isLoggingIn} />}
       {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} />}
-      {role === 'reporter' && <ReporterScreen rooms={rooms} formData={formData} setFormData={setFormData} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
       
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
