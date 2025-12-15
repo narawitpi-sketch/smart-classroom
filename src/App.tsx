@@ -26,8 +26,7 @@ import {
   Menu,
   Star,
   Smile,
-  ClipboardCheck,
-  Image as ImageIcon // ไอคอนรูปภาพ
+  ClipboardCheck // ไอคอนผลประเมิน
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -50,13 +49,6 @@ import {
   doc, 
   onSnapshot
 } from 'firebase/firestore';
-import { 
-  getStorage, 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
-  deleteObject 
-} from 'firebase/storage';
 
 // ==========================================
 // 1. CONFIGURATION & UTILS
@@ -66,7 +58,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCnH3miqz56mxvW7w2LUG_rUafmvxTXUFU",
   authDomain: "smart-classroom-app-80865.firebaseapp.com",
   projectId: "smart-classroom-app-80865",
-  storageBucket: "smart-classroom-app-80865.firebasestorage.app", // ต้องมี Storage Bucket
+  storageBucket: "smart-classroom-app-80865.firebasestorage.app",
   messagingSenderId: "1097518299832",
   appId: "1:1097518299832:web:bba6ef0f41d8fe2427924d",
   measurementId: "G-28RFQGB82Y"
@@ -80,14 +72,13 @@ const LINE_GROUP_ID = "C8d92d6c426766edb968dabcb780d4c39";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // เริ่มต้น Storage
 
 // Types
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
 type Status = 'pending' | 'in-progress' | 'completed';
 type Urgency = 'low' | 'medium' | 'high';
 type ReporterType = 'lecturer' | 'student' | 'other';
-type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks';
+type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks'; // เพิ่ม Tab feedbacks
 
 interface Issue {
   id: string;
@@ -101,8 +92,6 @@ interface Issue {
   status: Status;
   timestamp: any;
   docId?: string;
-  imageUrl?: string; // เก็บ URL รูปภาพ
-  imagePath?: string; // เก็บ Path รูปภาพใน Storage (เพื่อใช้ลบ)
 }
 
 interface Room {
@@ -115,9 +104,11 @@ interface Feedback {
   gender: string;
   status: string;
   age: string;
+  // System 4.1 - 4.3
   r_sys_easy: number;
   r_sys_complete: number;
   r_sys_speed: number;
+  // Service 5.1 - 5.6
   r_svc_contact: number;
   r_svc_start: number;
   r_svc_skill: number;
@@ -141,26 +132,11 @@ const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 
 
 const sendLineMessage = async (issueData: any) => {
   if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) return;
-  
   const messageText = `🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})\n--------------------\n📍 *ห้อง:* ${issueData.room}\n👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})\n📞 *เบอร์:* ${issueData.phone}\n⚠️ *ความเร่งด่วน:* ${issueData.urgency === 'high' ? '🔴 ด่วนมาก' : issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'}\n🛠 *ปัญหา:* ${issueData.category}\n📝 *รายละเอียด:* ${issueData.description}\n--------------------\nตรวจสอบ: https://smart-classroom-neon.vercel.app/`;
-  
-  const messages: any[] = [
-    { type: "text", text: messageText.trim() }
-  ];
-
-  // ถ้ามีรูป ให้ส่งรูปไปด้วย
-  if (issueData.imageUrl) {
-    messages.push({
-      type: "image",
-      originalContentUrl: issueData.imageUrl,
-      previewImageUrl: issueData.imageUrl
-    });
-  }
-
   try {
     await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
       method: 'POST', headers: { 'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: LINE_GROUP_ID, messages: messages }),
+      body: JSON.stringify({ to: LINE_GROUP_ID, messages: [{ type: "text", text: messageText.trim() }] }),
     });
   } catch (error) { console.error("Line Error", error); }
 };
@@ -182,12 +158,8 @@ const SweetAlert = ({ show, title, text, icon, onConfirm, onCancel, showCancel }
         <h3 className="text-2xl font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-gray-600 mb-6">{text}</p>
         <div className="flex gap-2">
-          {showCancel && (
-            <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>
-          )}
-          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>
-            ตกลง
-          </button>
+          {showCancel && <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>}
+          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>ตกลง</button>
         </div>
       </div>
     </div>
@@ -216,7 +188,7 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
           <div key={idx} className={`flex ${horizontal ? 'flex-row items-center gap-3' : 'flex-col gap-1'} text-sm`}>
             <div className={`${horizontal ? 'w-48 text-right' : 'w-full'} text-gray-500 truncate font-medium`} title={item.label}>{item.label}</div>
             <div className={`flex-1 ${horizontal ? 'h-3' : 'h-2 w-full'} bg-gray-100 rounded-full overflow-hidden`}>
-              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? 5 : maxValue)) * 100}%` }}></div>
+              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? maxValue : 5)) * 100}%` }}></div>
             </div>
             <div className={`${horizontal ? 'w-8 text-right' : 'w-full text-right'} font-bold text-gray-700`}>{item.value.toFixed(1)}</div>
           </div>
@@ -241,6 +213,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
   if (!isOpen) return null;
 
   const handleSubmit = () => {
+    // Check all fields
     const requiredFields = ['gender', 'status', 'age'];
     const ratingFields = ['r_sys_easy', 'r_sys_complete', 'r_sys_speed', 'r_svc_contact', 'r_svc_start', 'r_svc_skill', 'r_svc_polite', 'r_svc_result', 'r_svc_overall'];
     
@@ -367,31 +340,17 @@ const LandingScreen = ({ onReporterClick, onAdminClick, onFeedbackClick }: any) 
 const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, formSubmitting }: any) => {
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleRoomChange = (e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, room: e.target.value });
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(e.target.value)) setFormData({ ...formData, reporter: e.target.value }); };
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => { if ((e.target.value === '' || /^[0-9]+$/.test(e.target.value)) && e.target.value.length <= 10) setFormData({ ...formData, phone: e.target.value }); };
-  
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onSubmit(imageFile);
+    const success = await onSubmit();
     if (success) {
       setShowForm(false);
       setShowSuccess(true);
-      setImageFile(null);
-      setImagePreview(null);
     }
   };
 
@@ -463,30 +422,6 @@ const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, form
                   <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียด</label>
                   <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                 </div>
-                
-                {/* --- Image Upload Section --- */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
-                  <div className="flex items-center gap-4">
-                     <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg flex items-center gap-2 border border-gray-300 transition">
-                       <ImageIcon size={20} /> เลือกรูปภาพ
-                       <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                     </label>
-                     {imagePreview && (
-                       <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-300">
-                         <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                         <button 
-                           type="button"
-                           onClick={() => { setImageFile(null); setImagePreview(null); }}
-                           className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-full"
-                         >
-                           <X size={12} />
-                         </button>
-                       </div>
-                     )}
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
                   <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
@@ -615,7 +550,7 @@ export default function App() {
     } finally { setIsLoggingIn(false); }
   };
 
-  const handleSubmit = async (imageFile: File | null) => {
+  const handleSubmit = async () => {
     if (!user) return false;
     if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return false; }
     if (!formData.room) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณาเลือกห้องเรียน', 'warning'); return false; }
@@ -623,30 +558,9 @@ export default function App() {
     setFormSubmitting(true);
     try {
       const cleanData = { ...formData, room: formData.room.trim(), reporter: formData.reporter.trim(), phone: formData.phone.trim(), description: formData.description.trim() };
-      
-      let imageUrl = null;
-      let imagePath = null;
-
-      // Upload Image if exists
-      if (imageFile) {
-        const storageRef = ref(storage, `images/${Date.now()}_${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
-        imagePath = snapshot.ref.fullPath;
-      }
-
-      const newIssue = { 
-        id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, 
-        ...cleanData, 
-        status: 'pending', 
-        timestamp: new Date(),
-        imageUrl,
-        imagePath
-      };
-      
+      const newIssue = { id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, ...cleanData, status: 'pending', timestamp: new Date() };
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
       await sendLineMessage(newIssue);
-      
       setFormSubmitting(false);
       setFormData({ room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer', phone: '', urgency: 'medium' });
       return true;
@@ -656,33 +570,12 @@ export default function App() {
   // Admin Actions
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
-    try { 
-      await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus });
-      
-      // ถ้าสถานะเป็น Completed และมีรูป -> ลบรูป
-      if (newStatus === 'completed') {
-        const issue = issues.find(i => i.docId === docId);
-        if (issue && issue.imagePath) {
-          const imageRef = ref(storage, issue.imagePath);
-          await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
-          // ลบ URL ออกจาก DB เพื่อไม่ให้แสดงผลอีก
-          await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { imageUrl: null, imagePath: null });
-        }
-      }
-    } catch (error) { console.error(error); }
+    try { await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus }); } catch (error) { console.error(error); }
   };
 
   const handleDeleteIssue = async (docId: string) => {
     fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้?', 'warning', async () => {
-      try { 
-        // ลบรูปก่อนถ้ามี
-        const issue = issues.find(i => i.docId === docId);
-        if (issue && issue.imagePath) {
-            const imageRef = ref(storage, issue.imagePath);
-            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
-        }
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); 
-      } 
+      try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); } 
       catch (error) { fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error'); }
     }, true);
   };
@@ -722,14 +615,14 @@ export default function App() {
 
     if (filteredIssues.length === 0) { fireAlert('ไม่พบข้อมูล', 'ไม่มีรายการตามเงื่อนไข', 'warning'); return; }
 
-    const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ,รูปภาพ'];
+    const headers = ['รหัส,วันที่,เวลา,ห้องเรียน,ผู้แจ้ง,สถานะผู้แจ้ง,เบอร์โทร,ประเภทปัญหา,รายละเอียด,ความเร่งด่วน,สถานะ'];
     const csvRows = filteredIssues.map(i => {
       const d = i.timestamp ? new Date(i.timestamp.seconds * 1000) : null;
       const esc = (t: string) => `"${(t || '').replace(/"/g, '""')}"`;
       return [
         esc(i.id), esc(d?.toLocaleDateString('th-TH')||'-'), esc(d?.toLocaleTimeString('th-TH')||'-'),
         esc(i.room), esc(i.reporter), esc(getReporterLabel(i.reporterType)), esc(`'${i.phone}`),
-        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status), esc(i.imageUrl || '-')
+        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status)
       ].join(',');
     });
 
@@ -925,15 +818,7 @@ export default function App() {
                                   <tr key={issue.docId} className="hover:bg-gray-50 transition">
                                      <td className="px-6 py-4"><div className="font-mono text-gray-500 text-xs">{formatDate(issue.timestamp)}</div><div className="font-bold text-indigo-600 text-base">{issue.room}</div></td>
                                      <td className="px-6 py-4"><div className="font-medium text-gray-900">{issue.reporter}</div><div className="text-xs text-gray-500">{getReporterLabel(issue.reporterType)}</div>{issue.phone && <div className="text-xs text-gray-400 mt-0.5"><Phone size={10} className="inline mr-1"/>{issue.phone}</div>}</td>
-                                     <td className="px-6 py-4">
-                                       <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 border border-gray-200 mb-1 inline-block">{issue.category}</span>
-                                       <p className="truncate max-w-xs text-gray-800">{issue.description}</p>
-                                       {issue.imageUrl && (
-                                         <a href={issue.imageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
-                                           <ImageIcon size={12} /> ดูรูปภาพ
-                                         </a>
-                                       )}
-                                     </td>
+                                     <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-100 border border-gray-200 mb-1 inline-block">{issue.category}</span><p className="truncate max-w-xs text-gray-800">{issue.description}</p></td>
                                      <td className="px-6 py-4"><StatusBadge status={issue.status} /></td>
                                      <td className="px-6 py-4 text-right"><div className="flex justify-end gap-2">
                                         {issue.status === 'pending' && <button onClick={() => handleStatusChange(issue.docId!, 'in-progress')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded" title="รับงาน"><Wrench size={16} /></button>}
