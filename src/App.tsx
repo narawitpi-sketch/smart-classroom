@@ -27,7 +27,7 @@ import {
   Star,
   Smile,
   ClipboardCheck,
-  Image as ImageIcon
+  Image as ImageIcon // ไอคอนรูปภาพ
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -50,8 +50,13 @@ import {
   doc, 
   onSnapshot
 } from 'firebase/firestore';
-
-// (ลบ import Storage ออก เพราะเราจะเก็บใน Firestore แทน)
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject 
+} from 'firebase/storage';
 
 // ==========================================
 // 1. CONFIGURATION & UTILS
@@ -61,7 +66,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCnH3miqz56mxvW7w2LUG_rUafmvxTXUFU",
   authDomain: "smart-classroom-app-80865.firebaseapp.com",
   projectId: "smart-classroom-app-80865",
-  storageBucket: "smart-classroom-app-80865.firebasestorage.app",
+  storageBucket: "smart-classroom-app-80865.firebasestorage.app", // ต้องมี Storage Bucket
   messagingSenderId: "1097518299832",
   appId: "1:1097518299832:web:bba6ef0f41d8fe2427924d",
   measurementId: "G-28RFQGB82Y"
@@ -75,6 +80,7 @@ const LINE_GROUP_ID = "C8d92d6c426766edb968dabcb780d4c39";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // เริ่มต้น Storage
 
 // Types
 type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
@@ -95,7 +101,8 @@ interface Issue {
   status: Status;
   timestamp: any;
   docId?: string;
-  imageUrl?: string; // เก็บ Base64 String แทน URL
+  imageUrl?: string; // เก็บ URL รูปภาพ
+  imagePath?: string; // เก็บ Path รูปภาพใน Storage (เพื่อใช้ลบ)
 }
 
 interface Room {
@@ -132,40 +139,6 @@ const CATEGORIES = [
 const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
 const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
-// ฟังก์ชันย่อรูปภาพให้เล็กลงแล้วแปลงเป็น Base64
-const compressImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // กำหนดความกว้างสูงสุด
-        const scaleSize = MAX_WIDTH / img.width;
-        
-        // ถ้าขนาดรูปเล็กอยู่แล้ว ไม่ต้องย่อมาก
-        if (scaleSize >= 1) {
-            canvas.width = img.width;
-            canvas.height = img.height;
-        } else {
-            canvas.width = MAX_WIDTH;
-            canvas.height = img.height * scaleSize;
-        }
-        
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // แปลงเป็น JPEG คุณภาพ 0.6 (ลดขนาดไฟล์ลง)
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
-      };
-      img.onerror = (error) => reject(error);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
-
 const sendLineMessage = async (issueData: any) => {
   if (!LINE_CHANNEL_ACCESS_TOKEN || !LINE_GROUP_ID || LINE_CHANNEL_ACCESS_TOKEN.includes("ใส่_")) return;
   
@@ -175,13 +148,13 @@ const sendLineMessage = async (issueData: any) => {
     { type: "text", text: messageText.trim() }
   ];
 
-  // หมายเหตุ: LINE Messaging API อาจส่ง Base64 รูปภาพโดยตรงไม่ได้ (ต้องเป็น URL สาธารณะ)
-  // แต่เราสามารถส่งข้อความบอกว่า "มีรูปภาพแนบ ดูได้ในระบบ" ได้
+  // ถ้ามีรูป ให้ส่งรูปไปด้วย
   if (issueData.imageUrl) {
-     messages.push({
-        type: "text",
-        text: "📷 (มีรูปภาพประกอบ ดูได้ในระบบ Admin)"
-     });
+    messages.push({
+      type: "image",
+      originalContentUrl: issueData.imageUrl,
+      previewImageUrl: issueData.imageUrl
+    });
   }
 
   try {
@@ -243,7 +216,7 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
           <div key={idx} className={`flex ${horizontal ? 'flex-row items-center gap-3' : 'flex-col gap-1'} text-sm`}>
             <div className={`${horizontal ? 'w-48 text-right' : 'w-full'} text-gray-500 truncate font-medium`} title={item.label}>{item.label}</div>
             <div className={`flex-1 ${horizontal ? 'h-3' : 'h-2 w-full'} bg-gray-100 rounded-full overflow-hidden`}>
-              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? 5 : maxValue || 1)) * 100}%` }}></div>
+              <div className={`h-full rounded-full ${color} transition-all duration-500 ease-out`} style={{ width: `${(item.value / (horizontal ? 5 : maxValue)) * 100}%` }}></div>
             </div>
             <div className={`${horizontal ? 'w-8 text-right' : 'w-full text-right'} font-bold text-gray-700`}>{item.value.toFixed(1)}</div>
           </div>
@@ -255,7 +228,7 @@ const SimpleBarChart = ({ data, title, color = "bg-blue-500", horizontal = false
 };
 
 // ==========================================
-// 3. COMPONENTS: Modals
+// 3. NEW COMPONENT: FeedbackModal (Updated)
 // ==========================================
 
 const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
@@ -270,9 +243,14 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
   const handleSubmit = () => {
     const requiredFields = ['gender', 'status', 'age'];
     const ratingFields = ['r_sys_easy', 'r_sys_complete', 'r_sys_speed', 'r_svc_contact', 'r_svc_start', 'r_svc_skill', 'r_svc_polite', 'r_svc_result', 'r_svc_overall'];
+    
     // @ts-ignore
     const isMissing = requiredFields.some(f => !data[f]) || ratingFields.some(f => !data[f]);
-    if (isMissing) { alert("กรุณากรอกข้อมูลและให้คะแนนให้ครบทุกข้อ"); return; }
+
+    if (isMissing) {
+      alert("กรุณากรอกข้อมูลและให้คะแนนให้ครบทุกข้อ");
+      return;
+    }
     onSubmit(data);
   };
 
@@ -298,33 +276,38 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
           <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={24}/> แบบประเมินความพึงพอใจ</h3>
           <button onClick={onClose}><X size={24} /></button>
         </div>
+        
         <div className="p-6 overflow-y-auto custom-scrollbar">
+          {/* ข้อมูลทั่วไป */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">1. เพศ</h4><div className="grid grid-cols-2 gap-2">{['ชาย', 'หญิง'].map(g => (<button key={g} onClick={() => setData({...data, gender: g})} className={`p-2 rounded-lg border text-sm ${data.gender === g ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{g}</button>))}</div></div>
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">2. สถานะ</h4><div className="grid grid-cols-2 gap-2">{['อาจารย์', 'นักศึกษา', 'อื่นๆ'].map(s => (<button key={s} onClick={() => setData({...data, status: s})} className={`p-2 rounded-lg border text-sm ${data.status === s ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{s}</button>))}</div></div>
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">3. อายุ</h4><div className="grid grid-cols-2 gap-2">{['18-25', '26-35', '36-45', '46-55', '> 55'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`p-2 rounded-lg border text-sm ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{a} ปี</button>))}</div></div>
           </div>
+
           <div className="space-y-8">
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">4. ความพึงพอใจต่อระบบแจ้งซ่อม</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <StarRating label="4.1 การใช้งาน" subLabel="เข้าถึงง่าย ขั้นตอนน้อย" value={data.r_sys_easy} onChange={(v: number) => setData({...data, r_sys_easy: v})} />
-                <StarRating label="4.2 ข้อมูลครบถ้วน" subLabel="มีช่องให้ระบุครบ" value={data.r_sys_complete} onChange={(v: number) => setData({...data, r_sys_complete: v})} />
-                <StarRating label="4.3 การตอบสนอง" subLabel="โหลดเร็ว ไม่ค้าง" value={data.r_sys_speed} onChange={(v: number) => setData({...data, r_sys_speed: v})} />
+                <StarRating label="4.1 การใช้งาน (User Friendliness)" subLabel="เข้าถึงง่าย ขั้นตอนน้อย ปุ่มชัดเจน" value={data.r_sys_easy} onChange={(v: number) => setData({...data, r_sys_easy: v})} />
+                <StarRating label="4.2 ความครบถ้วนของข้อมูล" subLabel="มีช่องให้ระบุข้อมูลครบถ้วน" value={data.r_sys_complete} onChange={(v: number) => setData({...data, r_sys_complete: v})} />
+                <StarRating label="4.3 การตอบสนองของระบบ" subLabel="โหลดเร็ว ไม่ค้าง ไม่ error" value={data.r_sys_speed} onChange={(v: number) => setData({...data, r_sys_speed: v})} />
               </div>
             </div>
+
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">5. ความพึงพอใจต่อการให้บริการ</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <StarRating label="5.1 การติดต่อกลับ" subLabel="รับเรื่องรวดเร็ว" value={data.r_svc_contact} onChange={(v: number) => setData({...data, r_svc_contact: v})} />
-                <StarRating label="5.2 การเข้าซ่อม" subLabel="ดำเนินการรวดเร็ว" value={data.r_svc_start} onChange={(v: number) => setData({...data, r_svc_start: v})} />
-                <StarRating label="5.3 ความสามารถช่าง" subLabel="ทักษะการแก้ปัญหา" value={data.r_svc_skill} onChange={(v: number) => setData({...data, r_svc_skill: v})} />
-                <StarRating label="5.4 ความสุภาพ" subLabel="การสื่อสารเข้าใจง่าย" value={data.r_svc_polite} onChange={(v: number) => setData({...data, r_svc_polite: v})} />
-                <StarRating label="5.5 ผลลัพธ์การซ่อม" subLabel="ใช้งานได้ปกติ" value={data.r_svc_result} onChange={(v: number) => setData({...data, r_svc_result: v})} />
-                <StarRating label="5.6 ความพึงพอใจรวม" subLabel="ภาพรวมการให้บริการ" value={data.r_svc_overall} onChange={(v: number) => setData({...data, r_svc_overall: v})} />
+                <StarRating label="5.1 ความรวดเร็วในการติดต่อกลับ" subLabel="เจ้าหน้าที่รับเรื่องรวดเร็ว" value={data.r_svc_contact} onChange={(v: number) => setData({...data, r_svc_contact: v})} />
+                <StarRating label="5.2 ความรวดเร็วในการเข้าซ่อม" subLabel="เริ่มดำเนินการแก้ไขรวดเร็ว" value={data.r_svc_start} onChange={(v: number) => setData({...data, r_svc_start: v})} />
+                <StarRating label="5.3 ความสามารถของเจ้าหน้าที่" subLabel="ทักษะในการแก้ไขปัญหา" value={data.r_svc_skill} onChange={(v: number) => setData({...data, r_svc_skill: v})} />
+                <StarRating label="5.4 ความสุภาพและการสื่อสาร" subLabel="พูดจาสุภาพ เข้าใจง่าย" value={data.r_svc_polite} onChange={(v: number) => setData({...data, r_svc_polite: v})} />
+                <StarRating label="5.5 ผลลัพธ์ของการซ่อม" subLabel="ใช้งานได้ปกติ ไม่พังซ้ำ" value={data.r_svc_result} onChange={(v: number) => setData({...data, r_svc_result: v})} />
+                <StarRating label="5.6 ความพึงพอใจโดยรวม" subLabel="ภาพรวมการให้บริการ" value={data.r_svc_overall} onChange={(v: number) => setData({...data, r_svc_overall: v})} />
               </div>
             </div>
           </div>
+
           <button onClick={handleSubmit} className="w-full mt-8 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95 text-lg">ยืนยันการประเมิน</button>
         </div>
       </div>
@@ -481,7 +464,7 @@ const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, form
                   <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                 </div>
                 
-                {/* --- Image Upload UI --- */}
+                {/* --- Image Upload Section --- */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
                   <div className="flex items-center gap-4">
@@ -521,7 +504,7 @@ const ReporterScreen = ({ rooms, formData, setFormData, onSubmit, onLogout, form
 };
 
 // ==========================================
-// 5. MAIN APP COMPONENT
+// 4. MAIN APP COMPONENT
 // ==========================================
 
 export default function App() {
@@ -632,7 +615,6 @@ export default function App() {
     } finally { setIsLoggingIn(false); }
   };
 
-  // ✅ Updated handleSubmit to handle base64 image
   const handleSubmit = async (imageFile: File | null) => {
     if (!user) return false;
     if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return false; }
@@ -643,9 +625,14 @@ export default function App() {
       const cleanData = { ...formData, room: formData.room.trim(), reporter: formData.reporter.trim(), phone: formData.phone.trim(), description: formData.description.trim() };
       
       let imageUrl = null;
+      let imagePath = null;
+
+      // Upload Image if exists
       if (imageFile) {
-        // Compress and Convert to Base64
-        imageUrl = await compressImage(imageFile);
+        const storageRef = ref(storage, `images/${Date.now()}_${imageFile.name}`);
+        const snapshot = await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
+        imagePath = snapshot.ref.fullPath;
       }
 
       const newIssue = { 
@@ -653,7 +640,8 @@ export default function App() {
         ...cleanData, 
         status: 'pending', 
         timestamp: new Date(),
-        imageUrl
+        imageUrl,
+        imagePath
       };
       
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
@@ -665,24 +653,34 @@ export default function App() {
     } catch (error) { fireAlert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้', 'error'); setFormSubmitting(false); return false; }
   };
 
-  // ✅ Updated handleStatusChange to remove image on completion
+  // Admin Actions
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
     try { 
-      const updateData: any = { status: newStatus };
+      await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus });
       
-      // ถ้าซ่อมเสร็จแล้ว ให้ลบรูป (โดยการ set null)
+      // ถ้าสถานะเป็น Completed และมีรูป -> ลบรูป
       if (newStatus === 'completed') {
-        updateData.imageUrl = null; 
+        const issue = issues.find(i => i.docId === docId);
+        if (issue && issue.imagePath) {
+          const imageRef = ref(storage, issue.imagePath);
+          await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
+          // ลบ URL ออกจาก DB เพื่อไม่ให้แสดงผลอีก
+          await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { imageUrl: null, imagePath: null });
+        }
       }
-
-      await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), updateData);
     } catch (error) { console.error(error); }
   };
 
   const handleDeleteIssue = async (docId: string) => {
     fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้?', 'warning', async () => {
       try { 
+        // ลบรูปก่อนถ้ามี
+        const issue = issues.find(i => i.docId === docId);
+        if (issue && issue.imagePath) {
+            const imageRef = ref(storage, issue.imagePath);
+            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
+        }
         await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); 
       } 
       catch (error) { fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error'); }
@@ -731,8 +729,7 @@ export default function App() {
       return [
         esc(i.id), esc(d?.toLocaleDateString('th-TH')||'-'), esc(d?.toLocaleTimeString('th-TH')||'-'),
         esc(i.room), esc(i.reporter), esc(getReporterLabel(i.reporterType)), esc(`'${i.phone}`),
-        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status), 
-        i.imageUrl ? "มีรูปภาพ" : "-" // ใน CSV ไม่ใส่ Base64 เพราะยาวเกินไป
+        esc(i.category), esc(i.description), esc(i.urgency), esc(i.status), esc(i.imageUrl || '-')
       ].join(',');
     });
 
