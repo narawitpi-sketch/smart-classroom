@@ -145,8 +145,16 @@ export const AdminDashboard = ({ user, issues, rooms, handleLogout, fireAlert }:
       )}
 
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
-       {/* Sidebar Code (Same as before) */}
-       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 md:translate-x-0 md:static ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+       {/* Sidebar Code */}
+       <div className="md:hidden bg-white p-4 border-b flex justify-between items-center sticky top-0 z-40 shadow-sm">
+             <div className="flex items-center gap-2 text-black font-bold text-lg">
+                {user?.photoURL ? <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full" /> : <div className="bg-[#66FF00] p-1.5 rounded text-black"><Monitor size={20} /></div>}
+                {user?.displayName || 'Admin'}
+             </div>
+             <button onClick={() => setIsSidebarOpen(true)}><Menu size={24} /></button>
+          </div>
+
+          <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 md:translate-x-0 md:static ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
              <div className="h-full flex flex-col">
                 <div className="md:hidden p-4 flex justify-end"><button onClick={() => setIsSidebarOpen(false)}><X size={20} /></button></div>
                 <div className="p-6 border-b flex items-center gap-3 hidden md:flex">
@@ -166,6 +174,7 @@ export const AdminDashboard = ({ user, issues, rooms, handleLogout, fireAlert }:
                 <div className="p-4 border-t"><button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm"><LogOut size={16} /> ออกจากระบบ</button></div>
              </div>
           </aside>
+          {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
        
        <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
          {adminTab === 'dashboard' && (
@@ -217,7 +226,6 @@ export const AdminDashboard = ({ user, issues, rooms, handleLogout, fireAlert }:
                 </div>
              </div>
          )}
-
          {adminTab === 'rooms' && (
             <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Monitor /> จัดการห้องเรียน</h1>
@@ -238,5 +246,6 @@ export const AdminDashboard = ({ user, issues, rooms, handleLogout, fireAlert }:
          )}
        </main>
     </div>
+    </>
   );
-};
+}
