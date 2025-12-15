@@ -23,7 +23,7 @@ import {
   LayoutGrid,
   FileText,
   Download,
-  Calendar as CalendarIcon,
+  Calendar,
   Menu,
   Star,
   Heart,
