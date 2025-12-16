@@ -121,6 +121,19 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Notification Permission Effect
+  useEffect(() => {
+    if (role === 'staff' && "Notification" in window) {
+      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            new Notification("เปิดใช้งานการแจ้งเตือนแล้ว!");
+          }
+        });
+      }
+    }
+  }, [role]);
+
   // Data Fetching Effect
   useEffect(() => {
     if (!user) return;
@@ -128,6 +141,18 @@ export default function App() {
 
     const qIssues = collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues');
     const unsubIssues = onSnapshot(qIssues, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const newIssue = change.doc.data() as Issue;
+          if (role === 'staff' && Notification.permission === "granted") {
+            new Notification("มีรายการแจ้งซ่อมใหม่", {
+              body: `ห้อง ${newIssue.room}: ${newIssue.description}`,
+              icon: '/img/logo.png' 
+            });
+          }
+        }
+      });
+
       const fetched = snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })) as Issue[];
       fetched.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
       setIssues(fetched);
