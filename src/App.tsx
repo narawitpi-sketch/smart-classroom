@@ -134,6 +134,8 @@ export default function App() {
     }
   }, [role]);
 
+  const appLoadTime = React.useRef(new Date());
+
   // Data Fetching Effect
   useEffect(() => {
     if (!user) return;
@@ -144,7 +146,9 @@ export default function App() {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           const newIssue = change.doc.data() as Issue;
-          if (role === 'staff' && Notification.permission === "granted") {
+          const issueTimestamp = newIssue.timestamp && (newIssue.timestamp as any).toDate();
+          
+          if (role === 'staff' && Notification.permission === "granted" && issueTimestamp && issueTimestamp > appLoadTime.current) {
             new Notification("มีรายการแจ้งซ่อมใหม่", {
               body: `ห้อง ${newIssue.room}: ${newIssue.description}`,
               icon: '/img/logo.png' 
