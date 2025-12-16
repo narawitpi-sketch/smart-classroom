@@ -49,7 +49,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, onSubmit
       <p className="text-xs text-gray-500 mb-3">{subLabel}</p>
       <div className="flex gap-2 justify-center">
         {[1, 2, 3, 4, 5].map((star) => (
-          <button key={star} type="button" onClick={() => onChange(star)} className={`transition-transform hover:scale-110 focus:outline-none ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}>
+          <button key={star} type="button" onClick={(e) => { e.preventDefault(); onChange(star); }} className={`transition-transform hover:scale-110 focus:outline-none ${value >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}>
             <Star size={28} />
           </button>
         ))}
