@@ -15,8 +15,8 @@ export const requestNotificationPermission = async () => {
 const showNotification = (title: string, body: string) => {
   if (Notification.permission === "granted") {
     // เล่นเสียงแจ้งเตือน (ถ้าต้องการ)
-    // const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    // audio.play().catch(e => console.log('Audio play failed', e));
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.play().catch(e => console.log('Audio play failed', e));
 
     new Notification(title, {
       body: body,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { 
   Monitor, 
   Wrench,
@@ -188,7 +189,13 @@ export default function App() {
     
     setFormSubmitting(true);
     try {
-      const cleanData = { ...data, room: data.room.trim(), reporter: data.reporter.trim(), phone: data.phone.trim(), description: data.description.trim() };
+      const cleanData = { 
+        ...data, 
+        room: DOMPurify.sanitize(data.room.trim()),
+        reporter: DOMPurify.sanitize(data.reporter.trim()),
+        phone: DOMPurify.sanitize(data.phone.trim()),
+        description: DOMPurify.sanitize(data.description.trim())
+      };
       
       const newIssue = { 
         id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, 
@@ -241,10 +248,12 @@ export default function App() {
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
+    const sanitizedRoomName = DOMPurify.sanitize(newRoomName.trim());
+    if (!sanitizedRoomName) return;
     try {
-      await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms'), { name: newRoomName.trim() });
+      await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms'), { name: sanitizedRoomName });
       setNewRoomName('');
-      fireAlert('เพิ่มห้องสำเร็จ', `เพิ่มห้อง ${newRoomName} เรียบร้อยแล้ว`, 'success');
+      fireAlert('เพิ่มห้องสำเร็จ', `เพิ่มห้อง ${sanitizedRoomName} เรียบร้อยแล้ว`, 'success');
     } catch (error) { fireAlert('ผิดพลาด', 'ไม่สามารถเพิ่มห้องได้', 'error'); }
   };
 
@@ -296,6 +305,7 @@ export default function App() {
     try {
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedbacks'), {
         ...data,
+        suggestion: DOMPurify.sanitize(data.suggestion),
         timestamp: new Date()
       });
       setShowFeedbackModal(false);
