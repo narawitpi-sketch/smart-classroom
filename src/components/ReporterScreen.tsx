@@ -1,12 +1,20 @@
 // src/components/ReporterScreen.tsx
 import React, { useState } from 'react';
-import { UserIcon, Phone, GraduationCap, X, CheckCircle, Loader2, Monitor, LogOut, Wrench } from 'lucide-react';
+import { GraduationCap, X, CheckCircle, Loader2, Monitor, LogOut, Wrench, Speaker, Wifi, Thermometer, AlertCircle } from 'lucide-react';
 import type { ReporterType, Urgency, Room } from '../types';
 import { CATEGORIES } from '../config/constants';
 
+const iconMap = {
+  Monitor,
+  Speaker,
+  Wifi,
+  Thermometer,
+  AlertCircle,
+};
+
 interface ReporterScreenProps {
   rooms: any[];
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<boolean>;
   onLogout: () => void;
   formSubmitting: boolean;
   fireAlert: (title: string, text: string, icon: 'success' | 'error' | 'warning') => void;
@@ -94,11 +102,14 @@ const ReporterScreen: React.FC<ReporterScreenProps> = ({ rooms, onSubmit, onLogo
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทปัญหา</label>
                   <div className="grid grid-cols-3 gap-2">
-                    {CATEGORIES.map((cat) => (
-                      <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                        <cat.icon size={20} /> {cat.label}
-                      </button>
-                    ))}
+                    {CATEGORIES.map((cat) => {
+                      const IconComponent = iconMap[cat.icon as keyof typeof iconMap];
+                      return (
+                        <button key={cat.id} type="button" onClick={() => setFormData({...formData, category: cat.id})} className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs gap-1 transition-all ${formData.category === cat.id ? 'bg-[#66FF00]/10 border-[#66FF00] text-green-900 font-semibold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                          {IconComponent && <IconComponent size={20} />} {cat.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div>
