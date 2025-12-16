@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Monitor, 
   Wrench,
-  User,
   LogOut,
   CheckCircle,
   Loader2,
