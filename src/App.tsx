@@ -100,21 +100,24 @@ export default function App() {
 
   // Auth Effect
   useEffect(() => {
-    const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth).catch(console.error); };
-    initAuth();
-    
-    // --- ✅ 3. แก้ปัญหา Admin Refresh: เช็คสิทธิ์ในนี้เลยและ Set Role ให้เสร็จก่อนปิด Loading ---
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
+        // If the user is a registered and authorized admin
         if (!u.isAnonymous && u.email && ALLOWED_ADMIN_EMAILS.includes(u.email)) {
-           setRole('staff'); 
+          setRole('staff');
+        } else {
+          // For anonymous users or unauthorized users
+          setRole('guest');
         }
-      } else { 
-        await signInAnonymously(auth); 
+      } else {
+        // If no user is logged in, sign in anonymously
+        await signInAnonymously(auth).catch(console.error);
+        setRole('guest');
       }
       setLoadingAuth(false);
     });
+
     return () => unsubscribe();
   }, []);
 
