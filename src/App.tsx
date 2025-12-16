@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Monitor, 
-  Wifi, 
-  Speaker, 
-  Thermometer, 
-  AlertCircle,
   Wrench,
-  User as UserIcon,
+  User,
   LogOut,
-  Shield,
   CheckCircle,
-  ArrowRight,
-  Clock,
   Loader2,
-  Lock,
   Phone,
-  GraduationCap,
   X,
   Trash2,
   Plus,
@@ -25,7 +16,6 @@ import {
   Download,
   Menu,
   Star,
-  Smile,
   ClipboardCheck,
   Image as ImageIcon,
   MessageSquare
@@ -33,7 +23,6 @@ import {
 
 // --- Firebase Imports ---
 import { 
-  getAuth, 
   signInAnonymously, 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -42,7 +31,6 @@ import {
   type User
 } from 'firebase/auth';
 import { 
-  getFirestore, 
   collection, 
   addDoc, 
   updateDoc, 
@@ -51,15 +39,14 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { 
-  getStorage, 
   ref, 
   deleteObject 
 } from 'firebase/storage';
 
 // --- Local Imports ---
-import { app, auth, db, storage } from './config/firebase';
+import { auth, db, storage } from './config/firebase';
 import { APP_ID, ALLOWED_ADMIN_EMAILS, CATEGORIES } from './config/constants';
-import type { Role, Status, Urgency, ReporterType, AdminTab, Issue, Room, Feedback } from './types';
+import type { Role, Status, AdminTab, Issue, Room, Feedback } from './types';
 import { getReporterLabel, formatDate, sendLineMessage } from './utils/helpers';
 import SweetAlert from './components/SweetAlert';
 import StatusBadge from './components/StatusBadge';

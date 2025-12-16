@@ -1,6 +1,6 @@
 // src/components/ReporterScreen.tsx
 import React, { useState } from 'react';
-import { UserIcon, Phone, GraduationCap, AlertCircle, Camera, Upload, X, CheckCircle, Loader2, Monitor, LogOut, Wrench } from 'lucide-react';
+import { UserIcon, Phone, GraduationCap, X, CheckCircle, Loader2, Monitor, LogOut, Wrench } from 'lucide-react';
 import type { ReporterType, Urgency, Room } from '../types';
 import { CATEGORIES } from '../config/constants';
 
