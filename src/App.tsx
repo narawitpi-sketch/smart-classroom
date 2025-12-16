@@ -27,7 +27,8 @@ import {
   Star,
   Smile,
   ClipboardCheck,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageSquare
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -53,8 +54,6 @@ import {
 import { 
   getStorage, 
   ref, 
-  uploadBytes, 
-  getDownloadURL, 
   deleteObject 
 } from 'firebase/storage';
 
@@ -124,6 +123,7 @@ interface Feedback {
   r_svc_polite: number;
   r_svc_result: number;
   r_svc_overall: number;
+  suggestion?: string;
   timestamp: any;
 }
 
@@ -135,6 +135,7 @@ const CATEGORIES = [
   { id: 'Other', icon: AlertCircle, label: 'อื่นๆ' },
 ];
 
+// Helper Functions
 const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
 const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -146,14 +147,6 @@ const sendLineMessage = async (issueData: any) => {
   const messages: any[] = [
     { type: "text", text: messageText.trim() }
   ];
-
-  if (issueData.imageUrl) {
-    messages.push({
-      type: "image",
-      originalContentUrl: issueData.imageUrl,
-      previewImageUrl: issueData.imageUrl
-    });
-  }
 
   try {
     await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.line.me/v2/bot/message/push'), {
@@ -233,7 +226,8 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
   const [data, setData] = useState<Partial<Feedback>>({
     gender: '', status: '', age: '',
     r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
-    r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0
+    r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0,
+    suggestion: ''
   });
 
   useEffect(() => {
@@ -241,7 +235,8 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
       setData({
         gender: '', status: '', age: '',
         r_sys_easy: 0, r_sys_complete: 0, r_sys_speed: 0,
-        r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0
+        r_svc_contact: 0, r_svc_start: 0, r_svc_skill: 0, r_svc_polite: 0, r_svc_result: 0, r_svc_overall: 0,
+        suggestion: ''
       });
     }
   }, [isOpen]);
@@ -290,6 +285,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">2. สถานะ</h4><div className="grid grid-cols-2 gap-2">{['อาจารย์', 'นักศึกษา', 'อื่นๆ'].map(s => (<button key={s} onClick={() => setData({...data, status: s})} className={`p-2 rounded-lg border text-sm ${data.status === s ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{s}</button>))}</div></div>
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">3. อายุ</h4><div className="grid grid-cols-2 gap-2">{['18-25', '26-35', '36-45', '46-55', '> 55'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`p-2 rounded-lg border text-sm ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{a} ปี</button>))}</div></div>
           </div>
+
           <div className="space-y-8">
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">4. ความพึงพอใจต่อระบบแจ้งซ่อม</h3>
@@ -299,6 +295,7 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
                 <StarRating label="4.3 การตอบสนองของระบบ" subLabel="โหลดเร็ว ไม่ค้าง ไม่ error" value={data.r_sys_speed} onChange={(v: number) => setData({...data, r_sys_speed: v})} />
               </div>
             </div>
+
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">5. ความพึงพอใจต่อการให้บริการ</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -310,7 +307,22 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
                 <StarRating label="5.6 ความพึงพอใจโดยรวม" subLabel="ภาพรวมการให้บริการ" value={data.r_svc_overall} onChange={(v: number) => setData({...data, r_svc_overall: v})} />
               </div>
             </div>
+            
+            {/* 6. ข้อเสนอแนะเพิ่มเติม */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+               <label className="block font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                 <MessageSquare size={18} /> 6. ข้อเสนอแนะเพิ่มเติม (Optional)
+               </label>
+               <textarea 
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none bg-white text-gray-700 text-sm"
+                  rows={3}
+                  placeholder="หากมีข้อเสนอแนะเพิ่มเติม สามารถระบุได้ที่นี่..."
+                  value={data.suggestion}
+                  onChange={e => setData({...data, suggestion: e.target.value})}
+               />
+            </div>
           </div>
+
           <button onClick={handleSubmit} className="w-full mt-8 bg-[#66FF00] text-black font-bold py-4 rounded-2xl shadow-lg hover:bg-[#5ce600] transition transform active:scale-95 text-lg">ยืนยันการประเมิน</button>
         </div>
       </div>
@@ -370,8 +382,6 @@ const LandingScreen = ({ onReporterClick, onAdminClick, onFeedbackClick }: any) 
 const ReporterScreen = ({ rooms, onSubmit, onLogout, formSubmitting, fireAlert }: any) => {
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // ✅ 1. แก้ปัญหาฟอร์มไม่เคลียร์: ย้าย State มาไว้ใน Component นี้
   const [formData, setFormData] = useState({
@@ -382,30 +392,18 @@ const ReporterScreen = ({ rooms, onSubmit, onLogout, formSubmitting, fireAlert }
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.value === '' || /^[a-zA-Z\u0E00-\u0E7F\s]+$/.test(e.target.value)) setFormData({ ...formData, reporter: e.target.value }); };
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => { if ((e.target.value === '' || /^[0-9]+$/.test(e.target.value)) && e.target.value.length <= 10) setFormData({ ...formData, phone: e.target.value }); };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleLocalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Validation
     if (formData.phone.length !== 10) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก', 'warning'); return; }
     if (!formData.room) { fireAlert('ข้อมูลไม่ถูกต้อง', 'กรุณาเลือกห้องเรียน', 'warning'); return; }
 
-    const success = await onSubmit(formData, imageFile); // ส่งข้อมูลกลับไปให้ App
+    const success = await onSubmit(formData); // ส่งข้อมูลกลับไปให้ App
     if (success) {
       setShowForm(false);
       setShowSuccess(true);
       // Reset Form
       setFormData({ room: '', category: 'Visual', description: '', reporter: '', reporterType: 'lecturer', phone: '', urgency: 'medium' });
-      setImageFile(null);
-      setImagePreview(null);
     }
   };
 
@@ -478,29 +476,6 @@ const ReporterScreen = ({ rooms, onSubmit, onLogout, formSubmitting, fireAlert }
                   <textarea required rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
                 </div>
                 
-                {/* --- Image Upload Section --- */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">แนบรูปภาพ (ถ้ามี)</label>
-                  <div className="flex items-center gap-4">
-                     <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg flex items-center gap-2 border border-gray-300 transition">
-                       <ImageIcon size={20} /> เลือกรูปภาพ
-                       <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                     </label>
-                     {imagePreview && (
-                       <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-300">
-                         <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                         <button 
-                           type="button"
-                           onClick={() => { setImageFile(null); setImagePreview(null); }}
-                           className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-full"
-                         >
-                           <X size={12} />
-                         </button>
-                       </div>
-                     )}
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ความเร่งด่วน</label>
                   <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-[#66FF00]" value={formData.urgency} onChange={e => setFormData({...formData, urgency: e.target.value as Urgency})}>
@@ -638,30 +613,18 @@ export default function App() {
   };
 
   // ✅ Updated handleSubmit for new structure
-  const handleSubmit = async (data: any, imageFile: File | null) => {
+  const handleSubmit = async (data: any) => {
     if (!user) return false;
     
     setFormSubmitting(true);
     try {
       const cleanData = { ...data, room: data.room.trim(), reporter: data.reporter.trim(), phone: data.phone.trim(), description: data.description.trim() };
       
-      let imageUrl = null;
-      let imagePath = null;
-      if (imageFile) {
-        // Compress image logic moved inside component in previous steps, here assuming file passed is valid
-        const storageRef = ref(storage, `images/${Date.now()}_${imageFile.name}`);
-        const snapshot = await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
-        imagePath = snapshot.ref.fullPath;
-      }
-
       const newIssue = { 
         id: `REQ-${Math.floor(Math.random() * 9000) + 1000}`, 
         ...cleanData, 
         status: 'pending', 
-        timestamp: new Date(),
-        imageUrl,
-        imagePath
+        timestamp: new Date()
       };
       
       await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), newIssue);
@@ -778,7 +741,7 @@ export default function App() {
     const headers = [
       'วันที่', 'เพศ', 'สถานะ', 'อายุ',
       '4.1 ง่ายต่อการใช้งาน', '4.2 ข้อมูลครบถ้วน', '4.3 ความเร็วระบบ',
-      '5.1 การติดต่อกลับ', '5.2 ความเร็วเข้าซ่อม', '5.3 ความสามารถช่าง', '5.4 ความสุภาพ', '5.5 ผลลัพธ์', '5.6 ภาพรวม'
+      '5.1 การติดต่อกลับ', '5.2 ความเร็วเข้าซ่อม', '5.3 ความสามารถช่าง', '5.4 ความสุภาพ', '5.5 ผลลัพธ์', '5.6 ภาพรวม', '6. ข้อเสนอแนะ'
     ];
 
     const csvRows = feedbacks.map(f => {
@@ -786,7 +749,8 @@ export default function App() {
       return [
         `"${d?.toLocaleDateString('th-TH') || '-'}"`, `"${f.gender}"`, `"${f.status}"`, `"${f.age}"`,
         f.r_sys_easy, f.r_sys_complete, f.r_sys_speed,
-        f.r_svc_contact, f.r_svc_start, f.r_svc_skill, f.r_svc_polite, f.r_svc_result, f.r_svc_overall
+        f.r_svc_contact, f.r_svc_start, f.r_svc_skill, f.r_svc_polite, f.r_svc_result, f.r_svc_overall,
+        `"${f.suggestion || '-'}"`
       ].join(',');
     });
 
@@ -993,7 +957,29 @@ export default function App() {
                     <button onClick={handleExportFeedbackCSV} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* ข้อเสนอแนะ */}
+                  <div className="mt-8">
+                      <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                          <MessageSquare size={24} /> ข้อเสนอแนะจากผู้ใช้งาน
+                      </h3>
+                      <div className="grid gap-4">
+                          {feedbacks.filter(f => f.suggestion).map((f, idx) => (
+                              <div key={f.id || idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                  <p className="text-gray-800">{f.suggestion}</p>
+                                  <div className="mt-2 text-xs text-gray-500 flex gap-2">
+                                      <span>{f.status}</span>
+                                      <span>•</span>
+                                      <span>{formatDate(f.timestamp)}</span>
+                                  </div>
+                              </div>
+                          ))}
+                          {feedbacks.filter(f => f.suggestion).length === 0 && (
+                              <p className="text-gray-400 text-center py-4">ไม่มีข้อเสนอแนะ</p>
+                          )}
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                       <div className="flex items-center justify-between mb-4">
                          <h3 className="font-bold text-lg text-gray-800">คะแนนเฉลี่ยรายข้อ</h3>
