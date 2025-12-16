@@ -143,9 +143,16 @@ const sendLineMessage = async (issueData: any) => {
   
   const messageText = `🚨 *แจ้งซ่อมห้องเรียนใหม่* (${issueData.id})\n--------------------\n📍 *ห้อง:* ${issueData.room}\n👤 *ผู้แจ้ง:* ${issueData.reporter} (${getReporterLabel(issueData.reporterType)})\n📞 *เบอร์:* ${issueData.phone}\n⚠️ *ความเร่งด่วน:* ${issueData.urgency === 'high' ? '🔴 ด่วนมาก' : issueData.urgency === 'medium' ? '🟠 ปานกลาง' : '🟢 ทั่วไป'}\n🛠 *ปัญหา:* ${issueData.category}\n📝 *รายละเอียด:* ${issueData.description}\n--------------------\nตรวจสอบ: https://smart-classroom-neon.vercel.app/`;
   
-  const messages: any[] = [{ type: "text", text: messageText.trim() }];
+  const messages: any[] = [
+    { type: "text", text: messageText.trim() }
+  ];
+
   if (issueData.imageUrl) {
-    messages.push({ type: "image", originalContentUrl: issueData.imageUrl, previewImageUrl: issueData.imageUrl });
+    messages.push({
+      type: "image",
+      originalContentUrl: issueData.imageUrl,
+      previewImageUrl: issueData.imageUrl
+    });
   }
 
   try {
@@ -283,7 +290,6 @@ const FeedbackModal = ({ isOpen, onClose, onSubmit }: any) => {
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">2. สถานะ</h4><div className="grid grid-cols-2 gap-2">{['อาจารย์', 'นักศึกษา', 'อื่นๆ'].map(s => (<button key={s} onClick={() => setData({...data, status: s})} className={`p-2 rounded-lg border text-sm ${data.status === s ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{s}</button>))}</div></div>
              <div><h4 className="font-semibold text-gray-800 mb-3 text-sm">3. อายุ</h4><div className="grid grid-cols-2 gap-2">{['18-25', '26-35', '36-45', '46-55', '> 55'].map(a => (<button key={a} onClick={() => setData({...data, age: a})} className={`p-2 rounded-lg border text-sm ${data.age === a ? 'bg-black text-[#66FF00] border-black' : 'hover:bg-gray-50'}`}>{a} ปี</button>))}</div></div>
           </div>
-
           <div className="space-y-8">
             <div>
               <h3 className="text-lg font-bold text-indigo-700 mb-4 border-b pb-2">4. ความพึงพอใจต่อระบบแจ้งซ่อม</h3>
@@ -869,6 +875,7 @@ export default function App() {
 
       {role === 'login_admin' && <LoginScreen onGoogleLogin={handleGoogleLogin} onBack={() => setRole('guest')} isLoggingIn={isLoggingIn} />}
       {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} />}
+      {role === 'reporter' && <ReporterScreen rooms={rooms} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
       
       {role === 'staff' && (
         <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
