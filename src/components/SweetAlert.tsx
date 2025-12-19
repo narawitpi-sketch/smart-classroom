@@ -1,5 +1,5 @@
 // src/components/SweetAlert.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, X, AlertCircle } from 'lucide-react';
 
 interface SweetAlertProps {
@@ -7,13 +7,27 @@ interface SweetAlertProps {
   title: string;
   text: string;
   icon: 'success' | 'error' | 'warning';
-  onConfirm: () => void;
+  onConfirm: (inputValue?: string) => void;
   onCancel?: () => void;
   showCancel?: boolean;
+  input?: 'text' | 'password';
 }
 
-const SweetAlert: React.FC<SweetAlertProps> = ({ show, title, text, icon, onConfirm, onCancel, showCancel }) => {
+const SweetAlert: React.FC<SweetAlertProps> = ({ show, title, text, icon, onConfirm, onCancel, showCancel, input }) => {
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    if (show) {
+      setInputValue('');
+    }
+  }, [show]);
+
   if (!show) return null;
+  
+  const handleConfirm = () => {
+    onConfirm(input ? inputValue : undefined);
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
@@ -24,11 +38,24 @@ const SweetAlert: React.FC<SweetAlertProps> = ({ show, title, text, icon, onConf
         </div>
         <h3 className="text-2xl font-bold text-gray-800 mb-2">{title}</h3>
         <p className="text-gray-600 mb-6">{text}</p>
+        
+        {input && (
+          <div className="mb-4">
+            <input
+              type={input}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none"
+              placeholder="กรุณาใส่รหัสผ่าน..."
+            />
+          </div>
+        )}
+
         <div className="flex gap-2">
           {showCancel && (
             <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">ยกเลิก</button>
           )}
-          <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>
+          <button onClick={handleConfirm} className={`flex-1 py-3 rounded-xl font-bold text-lg text-white shadow-lg hover:opacity-90 transition ${icon === 'success' ? 'bg-green-500' : icon === 'error' ? 'bg-red-500' : 'bg-[#66FF00] text-black'}`}>
             ตกลง
           </button>
         </div>

@@ -45,7 +45,7 @@ import {
 
 // --- Local Imports ---
 import { auth, db, storage } from './config/firebase';
-import { APP_ID, ALLOWED_ADMIN_EMAILS, CATEGORIES } from './config/constants';
+import { APP_ID, ALLOWED_ADMIN_EMAILS, CATEGORIES, ADMIN_PASSWORD } from './config/constants';
 import type { Role, Status, AdminTab, Issue, Room, Feedback } from './types';
 import { getReporterLabel, formatDate, sendLineMessage } from './utils/helpers';
 import SweetAlert from './components/SweetAlert';
@@ -232,17 +232,33 @@ export default function App() {
   };
 
   const handleDeleteIssue = async (docId: string) => {
-    fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้?', 'warning', async () => {
-      try { 
-        const issue = issues.find(i => i.docId === docId);
-        if (issue && issue.imagePath) {
-            const imageRef = ref(storage, issue.imagePath);
-            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
+    setAlertConfig({
+      show: true,
+      title: 'ยืนยันการลบ',
+      text: 'กรุณากรอกรหัสผ่านผู้ดูแลระบบเพื่อลบรายการนี้',
+      icon: 'warning',
+      input: 'password',
+      showCancel: true,
+      onConfirm: async (password?: string) => {
+        setAlertConfig((prev: any) => ({ ...prev, show: false }));
+        if (password === ADMIN_PASSWORD) {
+          try {
+            const issue = issues.find(i => i.docId === docId);
+            if (issue && issue.imagePath) {
+              const imageRef = ref(storage, issue.imagePath);
+              await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
+            }
+            await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId));
+            fireAlert('ลบสำเร็จ', 'รายการถูกลบเรียบร้อยแล้ว', 'success');
+          } catch (error) {
+            fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error');
+          }
+        } else {
+          fireAlert('รหัสผ่านไม่ถูกต้อง', 'คุณไม่มีสิทธิ์ลบรายการนี้', 'error');
         }
-        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId)); 
-      } 
-      catch (error) { fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error'); }
-    }, true);
+      },
+      onCancel: () => setAlertConfig((prev: any) => ({ ...prev, show: false })),
+    });
   };
 
   const handleAddRoom = async (e: React.FormEvent) => {
@@ -394,7 +410,7 @@ export default function App() {
 
   return (
     <>
-      <SweetAlert show={alertConfig.show} title={alertConfig.title} text={alertConfig.text} icon={alertConfig.icon} onConfirm={alertConfig.onConfirm} onCancel={alertConfig.onCancel} showCancel={alertConfig.showCancel} />
+      <SweetAlert show={alertConfig.show} title={alertConfig.title} text={alertConfig.text} icon={alertConfig.icon} onConfirm={alertConfig.onConfirm} onCancel={alertConfig.onCancel} showCancel={alertConfig.showCancel} input={alertConfig.input} />
       <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />
 
       {showExportModal && (
