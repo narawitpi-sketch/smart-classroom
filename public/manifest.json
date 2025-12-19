@@ -17,5 +17,31 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "แจ้งซ่อมทันที",
+      "short_name": "แจ้งซ่อม",
+      "description": "ส่งคำขอแจ้งซ่อมใหม่ทันที",
+      "url": "/report",
+      "icons": [
+        {
+          "src": "/img/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "ดูสถานะงาน",
+      "short_name": "สถานะงาน",
+      "description": "ตรวจสอบสถานะคำขอแจ้งซ่อม",
+      "url": "/status",
+      "icons": [
+        {
+          "src": "/img/logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
