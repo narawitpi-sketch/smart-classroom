@@ -133,4 +133,4 @@ const ReporterScreen: React.FC<ReporterScreenProps> = ({ rooms, onSubmit, onLogo
   );
 };
 
-export default ReporterScreen;
+export default React.memo(ReporterScreen);
