@@ -59,7 +59,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, onSubmit
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="bg-[#66FF00] p-4 flex justify-between items-center text-black shrink-0">
           <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={24}/> แบบประเมินความพึงพอใจ</h3>
