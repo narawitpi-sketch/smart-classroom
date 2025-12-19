@@ -6,7 +6,7 @@
   "display": "standalone",
   "prefer_related_applications": false,
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#2196F3",
   "icons": [
     {
       "src": "/img/logo.png",
