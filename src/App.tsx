@@ -274,10 +274,28 @@ export default function App() {
   };
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
-    fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่?`, 'warning', async () => {
-      try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', roomId)); } 
-      catch (error) { fireAlert('ผิดพลาด', 'ลบห้องไม่สำเร็จ', 'error'); }
-    }, true);
+    setAlertConfig({
+      show: true,
+      title: 'ยืนยันลบห้อง',
+      text: `ต้องการลบห้อง ${roomName} ใช่หรือไม่? กรุณากรอกรหัสผ่านเพื่อยืนยัน`,
+      icon: 'warning',
+      input: 'password',
+      showCancel: true,
+      onConfirm: async (password?: string) => {
+        setAlertConfig((prev: any) => ({ ...prev, show: false }));
+        if (password === ADMIN_PASSWORD) {
+          try {
+            await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', roomId));
+            fireAlert('ลบสำเร็จ', `ห้อง ${roomName} ถูกลบเรียบร้อยแล้ว`, 'success');
+          } catch (error) {
+            fireAlert('ผิดพลาด', 'ลบห้องไม่สำเร็จ', 'error');
+          }
+        } else {
+          fireAlert('รหัสผ่านไม่ถูกต้อง', 'คุณไม่มีสิทธิ์ลบห้อง', 'error');
+        }
+      },
+      onCancel: () => setAlertConfig((prev: any) => ({ ...prev, show: false })),
+    });
   };
 
   const handleExportCSV = () => {
