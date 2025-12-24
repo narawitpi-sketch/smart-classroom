@@ -213,6 +213,9 @@ export default function App() {
         {role === 'reporter' && <ReporterScreen rooms={rooms} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
         {role === 'staff' && <AdminDashboard user={user} issues={issues} rooms={rooms} feedbacks={feedbacks} handleLogout={handleLogout} fireAlert={fireAlert} />}
       </Suspense>
+      <footer className="w-full py-4 text-center text-gray-500 text-sm font-medium opacity-80 relative z-50">
+        Copyright © 2025 PRESIDENT NSRU
+      </footer>
     </>
   );
 }
