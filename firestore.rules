@@ -40,5 +40,11 @@ service cloud.firestore {
        allow create: if request.auth != null;
        allow read: if isAdmin();
     }
+
+    // Inventory can be read by authenticated users (for selection), but modified only by admins.
+    match /artifacts/{appId}/public/data/inventory/{itemId} {
+       allow read: if request.auth != null;
+       allow write: if isAdmin();
+    }
   }
 }
