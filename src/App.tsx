@@ -48,6 +48,7 @@ export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]); 
+  const [inventory, setInventory] = useState<any[]>([]); // New Inventory State
   const [formSubmitting, setFormSubmitting] = useState(false);
   
   // Feedback State
@@ -135,15 +136,25 @@ export default function App() {
 
     // Fetch Feedbacks if staff
     let unsubFeedbacks = () => {};
+    let unsubInventory = () => {}; // New Unsub
+    
     if (role === 'staff') {
       const qFeedbacks = collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedbacks');
       unsubFeedbacks = onSnapshot(qFeedbacks, (snapshot) => {
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Feedback[];
         setFeedbacks(fetched);
       });
+
+      const qInventory = collection(db, 'artifacts', APP_ID, 'public', 'data', 'inventory');
+      unsubInventory = onSnapshot(qInventory, (snapshot) => {
+        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort by name
+        fetched.sort((a: any, b: any) => a.name.localeCompare(b.name));
+        setInventory(fetched);
+      });
     }
 
-    return () => { unsubIssues(); unsubRooms(); unsubFeedbacks(); };
+    return () => { unsubIssues(); unsubRooms(); unsubFeedbacks(); unsubInventory(); };
   }, [user, role]);
 
   // Actions
@@ -235,7 +246,7 @@ export default function App() {
         {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} onTrackingClick={() => setRole('tracking')} />}
         {role === 'reporter' && <ReporterScreen rooms={rooms} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
         {role === 'tracking' && <TrackingScreen onBack={() => setRole('guest')} />}
-        {role === 'staff' && <AdminDashboard user={user} issues={issues} rooms={rooms} feedbacks={feedbacks} handleLogout={handleLogout} fireAlert={fireAlert} />}
+        {role === 'staff' && <AdminDashboard user={user} issues={issues} rooms={rooms} feedbacks={feedbacks} inventory={inventory} handleLogout={handleLogout} fireAlert={fireAlert} />}
       </Suspense>
     </>
   );

@@ -3,7 +3,7 @@ import { Menu, Monitor } from 'lucide-react';
 import { type User } from 'firebase/auth';
 
 // --- Local Imports ---
-import type { AdminTab, Issue, Room, Feedback } from '../types';
+import type { AdminTab, Issue, Room, Feedback, EquipmentItem } from '../types';
 import { getReporterLabel } from '../utils/helpers';
 import AdminSidebar from './admin/AdminSidebar';
 import StatsPanel from './admin/StatsPanel';
@@ -11,17 +11,19 @@ import RoomManager from './admin/RoomManager';
 import IssueList from './admin/IssueList';
 import MaintenanceLog from './admin/MaintenanceLog';
 import FeedbackList from './admin/FeedbackList';
+import EquipmentManager from './admin/EquipmentManager';
 
 interface AdminDashboardProps {
   user: User | null;
   issues: Issue[];
   rooms: Room[];
   feedbacks: Feedback[];
+  inventory: EquipmentItem[];
   handleLogout: () => void;
   fireAlert: (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: (value?: any) => void, showCancel?: boolean, input?: string) => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, feedbacks, handleLogout, fireAlert }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, feedbacks, inventory, handleLogout, fireAlert }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
 
@@ -71,10 +73,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
       
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
          {adminTab === 'dashboard' && <StatsPanel statsData={statsData} />}
-         {adminTab === 'issues' && <IssueList issues={issues} fireAlert={fireAlert} />}
+         {adminTab === 'issues' && <IssueList issues={issues} fireAlert={fireAlert} inventory={inventory} />}
          {adminTab === 'rooms' && <RoomManager rooms={rooms} fireAlert={fireAlert} />}
          {adminTab === 'maintenance' && <MaintenanceLog issues={issues} fireAlert={fireAlert} />}
          {adminTab === 'feedbacks' && <FeedbackList feedbacks={feedbacks} fireAlert={fireAlert} />}
+         {adminTab === 'inventory' && <EquipmentManager inventory={inventory} fireAlert={fireAlert} />}
       </main>
     </div>
   );

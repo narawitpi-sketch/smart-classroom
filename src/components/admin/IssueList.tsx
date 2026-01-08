@@ -13,7 +13,7 @@ import { updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { APP_ID, CATEGORIES } from '../../config/constants';
-import type { Issue, Status } from '../../types';
+import type { Issue, Status, EquipmentItem } from '../../types';
 import { getReporterLabel, formatDate } from '../../utils/helpers';
 import StatusBadge from '../StatusBadge';
 import MaintenanceModal from '../MaintenanceModal';
@@ -21,9 +21,10 @@ import MaintenanceModal from '../MaintenanceModal';
 interface IssueListProps {
   issues: Issue[];
   fireAlert: (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: (value?: any) => void, showCancel?: boolean, input?: string) => void;
+  inventory: EquipmentItem[];
 }
 
-const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert }) => {
+const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory }) => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterReporterType, setFilterReporterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,7 +217,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert }) => {
         isOpen={showMaintenanceModal}
         onClose={() => setShowMaintenanceModal(false)}
         onSubmit={handleMaintenanceSubmit}
-        defaultSolver="Admin"
+        inventory={inventory}
       />
     </>
   );

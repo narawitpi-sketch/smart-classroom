@@ -3,7 +3,14 @@ export type Role = 'guest' | 'reporter' | 'staff' | 'login_admin' | 'tracking';
 export type Status = 'pending' | 'in-progress' | 'completed';
 export type Urgency = 'low' | 'medium' | 'high';
 export type ReporterType = 'lecturer' | 'student' | 'other';
-export type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks' | 'maintenance';
+export type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks' | 'maintenance' | 'inventory';
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+}
 
 export interface Issue {
   id: string;
