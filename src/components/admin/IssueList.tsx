@@ -269,7 +269,11 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory }) =
                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-xs">{issue.room.substring(0,3)}</div>
                                    <div>
                                       <p className="font-bold text-gray-900">{issue.room}</p>
-                                      <p className="text-xs text-gray-500">{issue.reporter} ({getReporterLabel(issue.reporterType)})</p>
+                                      <p className="text-xs text-gray-500">
+                                         {issue.reporterType === 'admin' 
+                                            ? (issue.solver ? `${issue.solver} (ผู้ซ่อม)` : 'รอระบุผู้ซ่อม') 
+                                            : `${issue.reporter} (${getReporterLabel(issue.reporterType)})`}
+                                      </p>
                                    </div>
                                 </div>
                              </td>
