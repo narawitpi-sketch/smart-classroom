@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
   
     // Helper function to check for admin role
+    // UPDATE THIS LIST WITH YOUR ADMIN EMAILS
     function isAdmin() {
       return request.auth.token.email == 'narawit.pi@nsru.ac.th' || 
              exists(/databases/$(database)/documents/admins/$(request.auth.uid));

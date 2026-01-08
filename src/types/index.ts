@@ -2,7 +2,7 @@
 export type Role = 'guest' | 'reporter' | 'staff' | 'login_admin' | 'tracking';
 export type Status = 'pending' | 'in-progress' | 'completed';
 export type Urgency = 'low' | 'medium' | 'high';
-export type ReporterType = 'lecturer' | 'student' | 'other';
+export type ReporterType = 'lecturer' | 'student' | 'admin' | 'other';
 export type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks' | 'maintenance' | 'inventory';
 
 export interface EquipmentItem {

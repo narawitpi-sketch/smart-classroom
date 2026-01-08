@@ -31,7 +31,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
   const statsData = useMemo(() => {
     const stats: any = { daily: {}, monthly: {}, yearly: {}, byCategory: {}, byReporter: {} };
     issues.forEach(i => {
-      if (!i.timestamp) return;
+      // Exclude Admin from stats (Internal Maintenance)
+      if (!i.timestamp || i.reporterType === 'admin') return;
       const d = new Date(i.timestamp.seconds * 1000);
       const day = d.toLocaleDateString('th-TH');
       const month = d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });

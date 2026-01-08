@@ -1,7 +1,7 @@
 // src/utils/helpers.ts
 import type { ReporterType } from '../types';
 
-export const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : 'อื่น ๆ';
+export const getReporterLabel = (type: ReporterType) => type === 'lecturer' ? 'อาจารย์' : type === 'student' ? 'นักศึกษา' : type === 'admin' ? 'Admin (ซ่อมเอง)' : 'อื่น ๆ';
 
 export const formatDate = (timestamp: any) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
