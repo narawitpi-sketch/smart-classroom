@@ -284,7 +284,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
        
        return [
          esc(i.id), esc(createDate), esc(resolveDate), esc(i.room), 
-         esc(i.description), esc(i.solution), esc(i.equipment), esc(i.solver)
+         esc(i.description), esc(i.solution || ''), esc(i.equipment || ''), esc(i.solver || '')
        ].join(',');
     });
 
