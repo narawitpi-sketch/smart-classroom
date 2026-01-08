@@ -1,6 +1,6 @@
 // src/config/constants.ts
 export const APP_ID = import.meta.env.VITE_APP_ID || 'smart-classroom';
-export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'smartclassroom@admin';
+// User authentication is handled by Firebase Auth, deleting items requires simple confirmation now.
 export const ALLOWED_ADMIN_EMAILS = (import.meta.env.VITE_ALLOWED_ADMIN_EMAILS || '').split(',');
 export const LINE_CHANNEL_ACCESS_TOKEN = import.meta.env.VITE_LINE_CHANNEL_ACCESS_TOKEN || '';
 export const LINE_GROUP_ID = import.meta.env.VITE_LINE_GROUP_ID || '';

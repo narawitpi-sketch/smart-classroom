@@ -16,9 +16,10 @@ import {
   Menu,
   Star,
   ClipboardCheck,
-  Image as ImageIcon,
   MessageSquare,
-  ClipboardList
+  ClipboardList,
+  Search,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -37,7 +38,7 @@ import {
 
 // --- Local Imports ---
 import { db, storage } from '../config/firebase';
-import { APP_ID, ADMIN_PASSWORD, CATEGORIES } from '../config/constants';
+import { APP_ID, CATEGORIES } from '../config/constants';
 import type { Status, AdminTab, Issue, Room, Feedback } from '../types';
 import { getReporterLabel, formatDate } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
@@ -58,6 +59,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterReporterType, setFilterReporterType] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [newRoomName, setNewRoomName] = useState('');
   
   const [showExportModal, setShowExportModal] = useState(false);
@@ -117,23 +119,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
   };
 
   const handleDeleteIssue = async (docId: string) => {
-    fireAlert('ยืนยันการลบ', 'กรุณากรอกรหัสผ่านผู้ดูแลระบบเพื่อลบรายการนี้', 'warning', async (password?: string) => {
-      if (password === ADMIN_PASSWORD) {
-        try {
-          const issue = issues.find(i => i.docId === docId);
-          if (issue && issue.imagePath) {
-            const imageRef = ref(storage, issue.imagePath);
-            await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
-          }
-          await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId));
-          fireAlert('ลบสำเร็จ', 'รายการถูกลบเรียบร้อยแล้ว', 'success');
-        } catch (error) {
-          fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error');
+    fireAlert('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ที่จะลบรายการนี้?', 'warning', async () => {
+      try {
+        const issue = issues.find(i => i.docId === docId);
+        if (issue && issue.imagePath) {
+          const imageRef = ref(storage, issue.imagePath);
+          await deleteObject(imageRef).catch(() => console.log("Image already deleted"));
         }
-      } else {
-        fireAlert('รหัสผ่านไม่ถูกต้อง', 'คุณไม่มีสิทธิ์ลบรายการนี้', 'error');
+        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId));
+        fireAlert('ลบสำเร็จ', 'รายการถูกลบเรียบร้อยแล้ว', 'success');
+      } catch (error) {
+        fireAlert('ลบไม่สำเร็จ', 'เกิดข้อผิดพลาด', 'error');
       }
-    }, true, 'password');
+    }, true);
   };
 
   const handleAddRoom = async (e: React.FormEvent) => {
@@ -149,18 +147,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
   };
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
-    fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่? กรุณากรอกรหัสผ่านเพื่อยืนยัน`, 'warning', async (password?: string) => {
-      if (password === ADMIN_PASSWORD) {
-        try {
-          await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', roomId));
-          fireAlert('ลบสำเร็จ', `ห้อง ${roomName} ถูกลบเรียบร้อยแล้ว`, 'success');
-        } catch (error) {
-          fireAlert('ผิดพลาด', 'ลบห้องไม่สำเร็จ', 'error');
-        }
-      } else {
-        fireAlert('รหัสผ่านไม่ถูกต้อง', 'คุณไม่มีสิทธิ์ลบห้อง', 'error');
+    fireAlert('ยืนยันลบห้อง', `ต้องการลบห้อง ${roomName} ใช่หรือไม่?`, 'warning', async () => {
+      try {
+        await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'rooms', roomId));
+        fireAlert('ลบสำเร็จ', `ห้อง ${roomName} ถูกลบเรียบร้อยแล้ว`, 'success');
+      } catch (error) {
+        fireAlert('ผิดพลาด', 'ลบห้องไม่สำเร็จ', 'error');
       }
-    }, true, 'password');
+    }, true);
   };
 
   const handleExportCSV = () => {
@@ -373,6 +367,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
                     <div className="flex flex-wrap gap-2 text-sm items-center">
                        <button onClick={() => setShowExportModal(true)} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>
                        <div className="h-6 w-px bg-gray-300 mx-2 hidden md:block"></div>
+                       <div className="relative">
+                          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input 
+                             type="text" 
+                             placeholder="ค้นหาห้อง / รายละเอียด..." 
+                             className="pl-9 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#66FF00] outline-none text-sm w-48"
+                             value={searchTerm}
+                             onChange={e => setSearchTerm(e.target.value)}
+                          />
+                       </div>
                        <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="all">ทุกปัญหา</option>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
                        <select className="border rounded-lg px-3 py-2 bg-white" value={filterReporterType} onChange={e => setFilterReporterType(e.target.value)}><option value="all">ทุกคน</option><option value="lecturer">อาจารย์</option><option value="student">นักศึกษา</option></select>
                     </div>
@@ -382,7 +386,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
                        <table className="w-full text-left text-sm text-gray-600">
                           <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs"><tr><th className="px-6 py-3">เวลา/ห้อง</th><th className="px-6 py-3">ผู้แจ้ง</th><th className="px-6 py-3">รายละเอียด</th><th className="px-6 py-3">สถานะ</th><th className="px-6 py-3 text-right">จัดการ</th></tr></thead>
                           <tbody className="divide-y divide-gray-100">
-                             {issues.filter(i => (filterCategory === 'all' || i.category === filterCategory) && (filterReporterType === 'all' || i.reporterType === filterReporterType)).map(issue => (
+                             {issues.filter(i => 
+                                (filterCategory === 'all' || i.category === filterCategory) && 
+                                (filterReporterType === 'all' || i.reporterType === filterReporterType) &&
+                                (searchTerm === '' || i.room.toLowerCase().includes(searchTerm.toLowerCase()) || i.description.toLowerCase().includes(searchTerm.toLowerCase()))
+                             ).map(issue => (
                                 <tr key={issue.docId} className="hover:bg-gray-50 transition">
                                    <td className="px-6 py-4"><div className="font-mono text-gray-500 text-xs">{formatDate(issue.timestamp)}</div><div className="font-bold text-indigo-600 text-base">{issue.room}</div></td>
                                    <td className="px-6 py-4"><div className="font-medium text-gray-900">{issue.reporter}</div><div className="text-xs text-gray-500">{getReporterLabel(issue.reporterType)}</div>{issue.phone && <div className="text-xs text-gray-400 mt-0.5"><Phone size={10} className="inline mr-1"/>{issue.phone}</div>}</td>
