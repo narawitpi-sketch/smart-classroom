@@ -1,9 +1,9 @@
 // src/types/index.ts
-export type Role = 'guest' | 'reporter' | 'staff' | 'login_admin'; 
+export type Role = 'guest' | 'reporter' | 'staff' | 'login_admin';
 export type Status = 'pending' | 'in-progress' | 'completed';
 export type Urgency = 'low' | 'medium' | 'high';
 export type ReporterType = 'lecturer' | 'student' | 'other';
-export type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks';
+export type AdminTab = 'dashboard' | 'issues' | 'rooms' | 'feedbacks' | 'maintenance';
 
 export interface Issue {
   id: string;
@@ -19,6 +19,11 @@ export interface Issue {
   docId?: string;
   imageUrl?: string;
   imagePath?: string;
+  // Maintenance Log
+  resolveTimestamp?: any;
+  solver?: string;
+  solution?: string;
+  equipment?: string;
 }
 
 export interface Room {

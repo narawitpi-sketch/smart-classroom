@@ -101,13 +101,29 @@ export default function App() {
         return;
     };
 
-    const unsubIssues = setupIssueNotifications(db, APP_ID, role, setIssues);
+    console.log("Starting data fetch. APP_ID:", APP_ID, "Role:", role);
+    
+    let unsubIssues = () => {};
+    // Only fetch issues if staff
+    if (role === 'staff') {
+      unsubIssues = setupIssueNotifications(db, APP_ID, role, setIssues, (error) => {
+        console.error("Issue Fetch Error:", error);
+        fireAlert('Connection Error', `ไม่สามารถดึงข้อมูลรายการแจ้งซ่อมได้: ${error.message}`, 'error');
+      });
+    }
 
     const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
     const unsubRooms = onSnapshot(qRooms, (snapshot) => {
+      console.log("Rooms snapshot received. Size:", snapshot.size);
+      if (snapshot.empty) {
+         console.warn("No rooms found at path:", qRooms.path);
+      }
       const fetchedRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
       fetchedRooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       setRooms(fetchedRooms);
+    }, (error) => {
+      console.error("Room Fetch Error:", error);
+      fireAlert('Connection Error', `ไม่สามารถดึงข้อมูลห้องเรียนได้: ${error.message} (Path: artifacts/${APP_ID}/public/data/rooms)`, 'error');
     });
 
     // Fetch Feedbacks if staff

@@ -17,7 +17,8 @@ import {
   Star,
   ClipboardCheck,
   Image as ImageIcon,
-  MessageSquare
+  MessageSquare,
+  ClipboardList
 } from 'lucide-react';
 
 // --- Firebase Imports ---
@@ -41,6 +42,7 @@ import type { Status, AdminTab, Issue, Room, Feedback } from '../types';
 import { getReporterLabel, formatDate } from '../utils/helpers';
 import StatusBadge from './StatusBadge';
 import SimpleBarChart from './SimpleBarChart';
+import MaintenanceModal from './MaintenanceModal';
 
 interface AdminDashboardProps {
   user: User | null;
@@ -64,19 +66,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
   const [exportCategory, setExportCategory] = useState('all');
   const [exportReporterType, setExportReporterType] = useState('all');
 
+  // Maintenance Modal State
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
+    
+    // If completing, show modal first
+    if (newStatus === 'completed') {
+      setSelectedIssueId(docId);
+      setShowMaintenanceModal(true);
+      return;
+    }
+
+    // Normal status update
     try { 
       await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus });
-      if (newStatus === 'completed') {
-        const issue = issues.find(i => i.docId === docId);
-        if (issue && issue.imagePath) {
-          const imageRef = ref(storage, issue.imagePath);
-          await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
-          await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { imageUrl: null, imagePath: null });
-        }
-      }
     } catch (error) { console.error(error); }
+  };
+
+  const handleMaintenanceSubmit = async (data: { solver: string; solution: string; equipment: string }) => {
+    if (!selectedIssueId) return;
+    
+    try {
+      // 1. Update status and save maintenance log
+      await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', selectedIssueId), { 
+        status: 'completed',
+        resolveTimestamp: new Date(),
+        solver: data.solver,
+        solution: data.solution,
+        equipment: data.equipment
+      });
+
+      // 2. Delete image if exists (Cleanup)
+      const issue = issues.find(i => i.docId === selectedIssueId);
+      if (issue && issue.imagePath) {
+        const imageRef = ref(storage, issue.imagePath);
+        await deleteObject(imageRef).catch(() => console.log("Image already deleted or not found"));
+        await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', selectedIssueId), { imageUrl: null, imagePath: null });
+      }
+      
+      fireAlert('บันทึกสำเร็จ', 'บันทึกผลการซ่อมและปิดงานเรียบร้อยแล้ว', 'success');
+      setShowMaintenanceModal(false);
+      setSelectedIssueId(null);
+    } catch (error) {
+      fireAlert('ผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
+      console.error(error); 
+    }
   };
 
   const handleDeleteIssue = async (docId: string) => {
@@ -202,6 +239,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
       stats.daily[day] = (stats.daily[day] || 0) + 1;
       stats.monthly[month] = (stats.monthly[month] || 0) + 1;
       stats.yearly[year] = (stats.yearly[year] || 0) + 1;
+      stats.yearly[year] = (stats.yearly[year] || 0) + 1;
+      
+      // Additional stats for maintenance (if needed) but using existing structure
+      
       stats.byCategory[i.category] = (stats.byCategory[i.category] || 0) + 1;
       const rep = getReporterLabel(i.reporterType);
       stats.byReporter[rep] = (stats.byReporter[rep] || 0) + 1;
@@ -230,6 +271,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
     ];
   }, [feedbacks]);
 
+  // Maintenance Export
+  const handleExportMaintenanceCSV = () => {
+    const completedIssues = issues.filter(i => i.status === 'completed');
+    if (completedIssues.length === 0) { fireAlert('ไม่พบข้อมูล', 'ยังไม่มีรายการที่ซ่อมเสร็จ', 'warning'); return; }
+
+    const headers = ['รหัส,วันที่แจ้ง,วันที่เสร็จ,ห้อง,ปัญหา,วิธีแก้ไข,อุปกรณ์ที่ใช้,ผู้ซ่อม'];
+    const csvRows = completedIssues.map(i => {
+       const createDate = i.timestamp ? new Date(i.timestamp.seconds * 1000).toLocaleDateString('th-TH') : '-';
+       const resolveDate = i.resolveTimestamp ? new Date(i.resolveTimestamp.seconds * 1000).toLocaleDateString('th-TH') : '-';
+       const esc = (t: string) => `"${(t || '').replace(/"/g, '""')}"`;
+       
+       return [
+         esc(i.id), esc(createDate), esc(resolveDate), esc(i.room), 
+         esc(i.description), esc(i.solution), esc(i.equipment), esc(i.solver)
+       ].join(',');
+    });
+
+    const blob = new Blob(['\uFEFF' + [headers, ...csvRows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `maintenance-report-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  };
+
   return (
     <>
       {showExportModal && (
@@ -248,6 +313,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
           </div>
         </div>
       )}
+
+      <MaintenanceModal 
+        isOpen={showMaintenanceModal}
+        onClose={() => setShowMaintenanceModal(false)}
+        onSubmit={handleMaintenanceSubmit}
+        defaultSolver={user?.displayName || 'Admin'}
+      />
 
       <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col md:flex-row">
         <div className="md:hidden bg-white p-4 border-b flex justify-between items-center sticky top-0 z-40 shadow-sm">
@@ -274,6 +346,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
                  <button onClick={() => { setAdminTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'dashboard' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><LayoutGrid size={20} /> ภาพรวม</button>
                  <button onClick={() => { setAdminTab('issues'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'issues' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><FileText size={20} /> รายการแจ้งซ่อม</button>
                  <button onClick={() => { setAdminTab('rooms'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'rooms' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><Monitor size={20} /> จัดการห้องเรียน</button>
+                 <button onClick={() => { setAdminTab('maintenance'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'maintenance' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><ClipboardList size={20} /> สรุปการซ่อม</button>
                  <button onClick={() => { setAdminTab('feedbacks'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${adminTab === 'feedbacks' ? 'bg-[#66FF00]/20 text-green-900 font-semibold border-l-4 border-[#66FF00]' : 'text-gray-600 hover:bg-gray-50'}`}><ClipboardCheck size={20} /> ผลการประเมิน</button>
               </nav>
               <div className="p-4 border-t"><button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-600 transition text-sm"><LogOut size={16} /> ออกจากระบบ</button></div>
@@ -352,6 +425,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
                           <div key={room.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50"><span className="font-bold text-gray-800 text-lg">{room.name}</span><button onClick={() => handleDeleteRoom(room.id, room.name)} className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50"><Trash2 size={18} /></button></div>
                        ))}
                        {rooms.length === 0 && <div className="p-8 text-center text-gray-400">ยังไม่มีข้อมูลห้องเรียน</div>}
+                    </div>
+                 </div>
+              </div>
+           )}
+           {adminTab === 'maintenance' && (
+              <div className="max-w-6xl mx-auto space-y-6">
+                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList /> สรุปรายการซ่อม (Maintenance Log)</h1>
+                    <button onClick={handleExportMaintenanceCSV} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>
+                 </div>
+                 
+                 <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <div className="overflow-x-auto">
+                       <table className="w-full text-left text-sm text-gray-600">
+                          <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
+                             <tr>
+                                <th className="px-6 py-3">วันที่แจ้ง / เสร็จ</th>
+                                <th className="px-6 py-3">ห้อง / ปัญหา</th>
+                                <th className="px-6 py-3">การแก้ไข</th>
+                                <th className="px-6 py-3">อุปกรณ์ที่ใช้</th>
+                                <th className="px-6 py-3">ผู้ดำเนินการ</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                             {issues.filter(i => i.status === 'completed').map(issue => (
+                                <tr key={issue.docId} className="hover:bg-gray-50 transition">
+                                   <td className="px-6 py-4">
+                                      <div className="text-xs text-gray-500">แจ้ง: {formatDate(issue.timestamp)}</div>
+                                      <div className="text-xs text-green-600 font-medium">เสร็จ: {issue.resolveTimestamp ? formatDate(issue.resolveTimestamp) : '-'}</div>
+                                   </td>
+                                   <td className="px-6 py-4">
+                                      <div className="font-bold text-gray-800">{issue.room}</div>
+                                      <div className="text-xs text-gray-500">{issue.category}</div>
+                                      <div className="text-xs text-gray-500 truncate max-w-[150px]">{issue.description}</div>
+                                   </td>
+                                   <td className="px-6 py-4 text-gray-800">{issue.solution || '-'}</td>
+                                   <td className="px-6 py-4 text-gray-800">{issue.equipment || '-'}</td>
+                                   <td className="px-6 py-4 font-medium text-indigo-600">{issue.solver || '-'}</td>
+                                </tr>
+                             ))}
+                             {issues.filter(i => i.status === 'completed').length === 0 && (
+                                <tr><td colSpan={5} className="text-center py-8 text-gray-400">ยังไม่มีรายการที่ซ่อมเสร็จ</td></tr>
+                             )}
+                          </tbody>
+                       </table>
                     </div>
                  </div>
               </div>
