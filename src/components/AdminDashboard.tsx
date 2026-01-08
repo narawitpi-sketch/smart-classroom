@@ -239,7 +239,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
       stats.daily[day] = (stats.daily[day] || 0) + 1;
       stats.monthly[month] = (stats.monthly[month] || 0) + 1;
       stats.yearly[year] = (stats.yearly[year] || 0) + 1;
-      stats.yearly[year] = (stats.yearly[year] || 0) + 1;
       
       // Additional stats for maintenance (if needed) but using existing structure
       
