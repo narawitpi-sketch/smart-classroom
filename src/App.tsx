@@ -30,6 +30,7 @@ const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
 const LandingScreen = React.lazy(() => import('./components/LandingScreen'));
 const LoginScreen = React.lazy(() => import('./components/LoginScreen'));
 const ReporterScreen = React.lazy(() => import('./components/ReporterScreen'));
+const TrackingScreen = React.lazy(() => import('./components/TrackingScreen'));
 
 import { requestNotificationPermission, setupIssueNotifications } from './utils/notifications';
 
@@ -72,12 +73,18 @@ export default function App() {
           setRole('staff');
         } else {
           // For anonymous users or unauthorized users
-          setRole('guest');
+          // Check for URL param to auto-route to reporter
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('room')) {
+            setRole('reporter');
+          } else {
+            setRole('guest');
+          }
         }
       } else {
         // If no user is logged in, sign in anonymously
         await signInAnonymously(auth).catch(console.error);
-        setRole('guest');
+        // Do not set role here, wait for auth state change to trigger the block above
       }
       setLoadingAuth(false);
     });
@@ -225,8 +232,9 @@ export default function App() {
       <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} onSubmit={handleFeedbackSubmit} />
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="w-10 h-10 animate-spin text-[#66FF00]" /></div>}>
         {role === 'login_admin' && <LoginScreen onGoogleLogin={handleGoogleLogin} onBack={() => setRole('guest')} isLoggingIn={isLoggingIn} />}
-        {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} />}
+        {role === 'guest' && <LandingScreen onReporterClick={() => setRole('reporter')} onAdminClick={handleStaffClick} onFeedbackClick={() => setShowFeedbackModal(true)} onTrackingClick={() => setRole('tracking')} />}
         {role === 'reporter' && <ReporterScreen rooms={rooms} onSubmit={handleSubmit} onLogout={handleLogout} formSubmitting={formSubmitting} fireAlert={fireAlert} />}
+        {role === 'tracking' && <TrackingScreen onBack={() => setRole('guest')} />}
         {role === 'staff' && <AdminDashboard user={user} issues={issues} rooms={rooms} feedbacks={feedbacks} handleLogout={handleLogout} fireAlert={fireAlert} />}
       </Suspense>
     </>

@@ -1,14 +1,15 @@
 // src/components/LandingScreen.tsx
 import React from 'react';
-import { Monitor, UserIcon, Shield, ArrowRight, Smile } from 'lucide-react';
+import { Monitor, UserIcon, Shield, ArrowRight, Smile, Search } from 'lucide-react';
 
 interface LandingScreenProps {
   onReporterClick: () => void;
   onAdminClick: () => void;
   onFeedbackClick: () => void;
+  onTrackingClick: () => void;
 }
 
-const LandingScreen: React.FC<LandingScreenProps> = React.memo(({ onReporterClick, onAdminClick, onFeedbackClick }) => {
+const LandingScreen: React.FC<LandingScreenProps> = React.memo(({ onReporterClick, onAdminClick, onFeedbackClick, onTrackingClick }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center p-4 relative">
       <div className="max-w-4xl w-full text-center z-10">
@@ -29,9 +30,14 @@ const LandingScreen: React.FC<LandingScreenProps> = React.memo(({ onReporterClic
           </button>
         </div>
 
-        <button onClick={onFeedbackClick} className="inline-flex items-center gap-2 text-gray-500 hover:text-black bg-white px-6 py-3 rounded-full shadow-sm hover:shadow-md transition">
-           <Smile size={20} className="text-[#66FF00] fill-current" /> ประเมินความพึงพอใจการใช้งาน
-        </button>
+        <div className="flex justify-center gap-4">
+          <button onClick={onTrackingClick} className="inline-flex items-center gap-2 text-gray-600 hover:text-black bg-white px-6 py-3 rounded-full shadow-sm hover:shadow-md transition">
+             <Search size={20} className="text-[#66FF00]" /> ติดตามสถานะ
+          </button>
+          <button onClick={onFeedbackClick} className="inline-flex items-center gap-2 text-gray-600 hover:text-black bg-white px-6 py-3 rounded-full shadow-sm hover:shadow-md transition">
+             <Smile size={20} className="text-[#66FF00] fill-current" /> ประเมินความพึงพอใจ
+          </button>
+        </div>
       </div>
     </div>
   );
