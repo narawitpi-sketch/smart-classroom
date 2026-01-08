@@ -71,21 +71,25 @@ export default function App() {
         setUser(u);
         // If the user is a registered and authorized admin
         if (!u.isAnonymous && u.email && ALLOWED_ADMIN_EMAILS.includes(u.email)) {
+          console.log("Admin logged in:", u.email);
           setRole('staff');
         } else {
-          // For anonymous users or unauthorized users
-          // Check for URL param to auto-route to reporter
+          // Anonymous or non-admin user
           const params = new URLSearchParams(window.location.search);
           if (params.get('room')) {
-            setRole('reporter');
-          } else {
-            setRole('guest');
+             setRole('reporter');
+          } else if (role !== 'tracking') {
+             // Keep tracking role if set, otherwise guest
+             setRole('guest');
           }
         }
       } else {
-        // If no user is logged in, sign in anonymously
-        await signInAnonymously(auth).catch(console.error);
-        // Do not set role here, wait for auth state change to trigger the block above
+        // No user. 
+        // We do NOT auto-login anonymously to prevent overwriting existing sessions during loading.
+        // Only explicit actions should trigger login.
+        setUser(null);
+        // If we were expecting an admin login but got null, we might be logged out.
+        if (role !== 'login_admin') setRole('guest');
       }
       setLoadingAuth(false);
     });
@@ -101,44 +105,35 @@ export default function App() {
   }, [role]);
 
   // Data Fetching Effect
+  // Data Fetching Effect
   useEffect(() => {
-    if (!user || role === 'guest') {
-        setIssues([]);
-        setRooms([]);
-        setFeedbacks([]);
-        return;
-    };
-
-    console.log("Starting data fetch. APP_ID:", APP_ID, "Role:", role);
-    
-    let unsubIssues = () => {};
-    // Only fetch issues if staff
-    if (role === 'staff') {
-      unsubIssues = setupIssueNotifications(db, APP_ID, role, setIssues, (error) => {
-        console.error("Issue Fetch Error:", error);
-        fireAlert('Connection Error', `ไม่สามารถดึงข้อมูลรายการแจ้งซ่อมได้: ${error.message}`, 'error');
-      });
-    }
-
+    // 1. Always fetch rooms (Public info needed for Reporter)
     const qRooms = collection(db, 'artifacts', APP_ID, 'public', 'data', 'rooms');
     const unsubRooms = onSnapshot(qRooms, (snapshot) => {
-      console.log("Rooms snapshot received. Size:", snapshot.size);
-      if (snapshot.empty) {
-         console.warn("No rooms found at path:", qRooms.path);
-      }
+      // console.log("Rooms snapshot received. Size:", snapshot.size);
       const fetchedRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
       fetchedRooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       setRooms(fetchedRooms);
     }, (error) => {
       console.error("Room Fetch Error:", error);
-      fireAlert('Connection Error', `ไม่สามารถดึงข้อมูลห้องเรียนได้: ${error.message} (Path: artifacts/${APP_ID}/public/data/rooms)`, 'error');
+      // Only alert if it's a real connectivity issue, not just permission denial during transition
+      if (error.code !== 'permission-denied') {
+          // fireAlert('Connection Error', ...);
+      }
     });
 
-    // Fetch Feedbacks if staff
+    // 2. Fetch Protected Data ONLY if Admin (Staff)
+    let unsubIssues = () => {};
     let unsubFeedbacks = () => {};
-    let unsubInventory = () => {}; // New Unsub
+    let unsubInventory = () => {};
     
-    if (role === 'staff') {
+    if (role === 'staff' && user) {
+      console.log("Starting ADMIN data fetch. Role:", role);
+      
+      unsubIssues = setupIssueNotifications(db, APP_ID, role, setIssues, (error) => {
+        console.error("Issue Fetch Error:", error);
+      });
+
       const qFeedbacks = collection(db, 'artifacts', APP_ID, 'public', 'data', 'feedbacks');
       unsubFeedbacks = onSnapshot(qFeedbacks, (snapshot) => {
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Feedback[];
@@ -148,10 +143,14 @@ export default function App() {
       const qInventory = collection(db, 'artifacts', APP_ID, 'public', 'data', 'inventory');
       unsubInventory = onSnapshot(qInventory, (snapshot) => {
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Sort by name
         fetched.sort((a: any, b: any) => a.name.localeCompare(b.name));
         setInventory(fetched);
       });
+    } else {
+        // Clear protected data if not admin
+        setIssues([]);
+        setFeedbacks([]);
+        setInventory([]);
     }
 
     return () => { unsubIssues(); unsubRooms(); unsubFeedbacks(); unsubInventory(); };

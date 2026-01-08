@@ -20,24 +20,22 @@ service cloud.firestore {
       allow read, write: if false; // Default deny
     }
 
-    // Issues can be created by any authenticated user.
+    // Issues can be created by ANYONE (Public).
     // Only admins can read all issues or modify them.
-    // Users can read their own issues (if we add a 'creatorUid' field).
     match /artifacts/{appId}/public/data/issues/{issueId} {
-      allow create: if request.auth != null;
+      allow create: if true;
       allow read, update, delete: if isAdmin();
     }
     
-    // Rooms can only be read and written by admins.
+    // Rooms can be read by ANYONE (so reporter screen can list them).
     match /artifacts/{appId}/public/data/rooms/{roomId} {
-      allow read, list: if request.auth != null;
+      allow read, list: if true;
       allow create, delete: if isAdmin();
     }
     
-    // Feedbacks can be created by any authenticated user.
-    // Only admins can read them.
+    // Feedbacks can be created by ANYONE.
     match /artifacts/{appId}/public/data/feedbacks/{feedbackId} {
-       allow create: if request.auth != null;
+       allow create: if true;
        allow read: if isAdmin();
     }
 
