@@ -40,14 +40,24 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, fireAlert }) => {
   };
 
   const handlePrintQR = () => {
+    const qrContent = document.getElementById('qr-code-wrapper')?.innerHTML;
+    if (!qrContent) return;
+
     const printWindow = window.open('', '', 'width=600,height=600');
     if (printWindow) {
         printWindow.document.write('<html><head><title>Print QR</title></head><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">');
         printWindow.document.write(`<h1 style="font-size:3rem;margin-bottom:1rem;">Room ${activeQRRoom?.name}</h1>`);
-        printWindow.document.write(document.getElementById('qr-code-svg')?.outerHTML || '');
+        printWindow.document.write(qrContent);
         printWindow.document.write('<p style="margin-top:1rem;color:#666;">Scan to Report Issue</p>');
-        printWindow.document.write('<script>window.print();window.close();</script></body></html>');
+        printWindow.document.write('</body></html>');
         printWindow.document.close();
+        
+        // Wait for content to render
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        }, 500);
     }
   };
 
