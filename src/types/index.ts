@@ -10,6 +10,15 @@ export interface EquipmentItem {
   name: string;
   unit: string;
   quantity: number;
+  pricePerUnit?: number; // Price per smallest unit
+}
+
+export interface UsedEquipment {
+  inventoryId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
 }
 
 export interface Issue {

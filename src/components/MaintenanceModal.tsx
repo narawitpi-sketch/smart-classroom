@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
-import type { EquipmentItem } from '../types';
+import type { EquipmentItem, UsedEquipment } from '../types';
 
 interface MaintenanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { solver: string; solution: string; equipment: string }) => void;
+  onSubmit: (data: { solver: string; solution: string; equipment: string }, usedItems: UsedEquipment[]) => void;
   inventory: EquipmentItem[];
 }
 
-interface SelectedItem {
-  id: string; // generated id for UI key
-  inventoryId: string;
-  name: string;
-  quantity: number;
+// Reuse UsedEquipment for internal state or map it
+interface SelectedItem extends UsedEquipment {
+  id: string; // UI key
 }
 
 const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, onSubmit, inventory }) => {
@@ -27,7 +25,7 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
   if (!isOpen) return null;
 
   const handleAddItem = () => {
-    setSelectedItems([...selectedItems, { id: Math.random().toString(), inventoryId: '', name: '', quantity: 1 }]);
+    setSelectedItems([...selectedItems, { id: Math.random().toString(), inventoryId: '', name: '', quantity: 1, unit: '', pricePerUnit: 0 }]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -39,12 +37,22 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
       if (item.id === id) {
         if (field === 'inventoryId') {
            const inv = inventory.find(i => i.id === value);
-           return { ...item, inventoryId: value as string, name: inv?.name || '', unit: inv?.unit || '' };
+           return { 
+             ...item, 
+             inventoryId: value as string, 
+             name: inv?.name || '', 
+             unit: inv?.unit || '',
+             pricePerUnit: inv?.pricePerUnit || 0
+           };
         }
         return { ...item, [field]: value };
       }
       return item;
     }));
+  };
+
+  const calculateTotal = () => {
+    return selectedItems.reduce((sum, item) => sum + (item.quantity * item.pricePerUnit), 0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,17 +61,30 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
     // Construct equipment string
     const parts = selectedItems
         .filter(i => i.name)
-        .map(i => `${i.name} (${i.quantity})`)
+        .map(i => {
+           const price = i.pricePerUnit * i.quantity;
+           return `${i.name} (${i.quantity} ${i.unit})` + (price > 0 ? ` - ${Math.round(price).toLocaleString()} บาท` : '');
+        });
     
     if (otherEquipment.trim()) {
         parts.push(`อื่นๆ: ${otherEquipment.trim()}`);
     }
 
+    const totalCost = calculateTotal();
+    if (totalCost > 0) {
+        parts.push(`[รวมเป็นเงินประมาณ: ${Math.round(totalCost).toLocaleString()} บาท]`);
+    }
+
+    // Prepare usedItems for parent
+    const usedItemsPayload: UsedEquipment[] = selectedItems
+      .filter(i => i.inventoryId)
+      .map(({ id, ...rest }) => rest);
+
     onSubmit({
       solver,
       solution,
       equipment: parts.join(', ') || 'ไม่มีการใช้อุปกรณ์'
-    });
+    }, usedItemsPayload);
 
     // Reset
     setSolver('');
@@ -95,30 +116,38 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
             <label className="block text-sm font-bold text-gray-700 mb-2">รายการอุปกรณ์ที่ใช้</label>
             <div className="space-y-2 mb-2">
                {selectedItems.map((item) => (
-                 <div key={item.id} className="flex gap-2 items-center">
+                 <div key={item.id} className="flex gap-2 items-center text-sm">
                     <select 
-                        className="flex-1 px-3 py-2 border rounded-lg bg-white"
+                        className="flex-1 px-2 py-2 border rounded-lg bg-white min-w-0"
                         value={item.inventoryId}
                         onChange={e => handleItemChange(item.id, 'inventoryId', e.target.value)}
                         required
                     >
                         <option value="">-- เลือกอุปกรณ์ --</option>
                         {inventory.map(inv => (
-                            <option key={inv.id} value={inv.id}>{inv.name} (คงเหลือ: {inv.quantity} {inv.unit})</option>
+                            <option key={inv.id} value={inv.id}>{inv.name} ({inv.quantity} {inv.unit})</option>
                         ))}
                     </select>
                     <input 
                         type="number" 
                         min="1" 
-                        className="w-20 px-3 py-2 border rounded-lg text-center"
+                        className="w-16 px-2 py-2 border rounded-lg text-center"
                         value={item.quantity} 
                         onChange={e => handleItemChange(item.id, 'quantity', parseInt(e.target.value) || 1)}
                     />
-                    <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded"><Trash2 size={18} /></button>
+                    <div className="w-20 text-right text-gray-600 font-mono">
+                        {item.pricePerUnit > 0 ? (item.pricePerUnit * item.quantity).toLocaleString() : '-'}
+                    </div>
+                    <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded flex-shrink-0"><Trash2 size={18} /></button>
                  </div>
                ))}
             </div>
-            <button type="button" onClick={handleAddItem} className="text-sm text-[#66FF00] hover:text-[#5ce600] font-bold flex items-center gap-1"><Plus size={16} /> โบกรายการ</button>
+            <button type="button" onClick={handleAddItem} className="text-sm text-[#66FF00] hover:text-[#5ce600] font-bold flex items-center gap-1"><Plus size={16} /> เบิกอุปกรณ์เพิ่ม</button>
+            {selectedItems.length > 0 && (
+                <div className="mt-3 text-right font-bold text-gray-800 border-t pt-2">
+                    รวมมูลค่าประมาณ: <span className="text-indigo-600 text-lg">{Math.round(calculateTotal()).toLocaleString()}</span> บาท
+                </div>
+            )}
           </div>
 
           <div>

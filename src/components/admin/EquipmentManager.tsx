@@ -5,6 +5,8 @@ import { db } from '../../config/firebase';
 import { APP_ID } from '../../config/constants';
 import type { EquipmentItem } from '../../types';
 
+// ... imports
+
 interface EquipmentManagerProps {
   inventory: EquipmentItem[];
   fireAlert: (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: (value?: any) => void, showCancel?: boolean, input?: string) => void;
@@ -18,12 +20,14 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [quantity, setQuantity] = useState<number>(0);
+  const [pricePerUnit, setPricePerUnit] = useState<number>(0);
 
   const handleEdit = (item: EquipmentItem) => {
     setEditingId(item.id);
     setName(item.name);
     setUnit(item.unit);
     setQuantity(item.quantity);
+    setPricePerUnit(item.pricePerUnit || 0);
     setShowForm(true);
   };
 
@@ -31,6 +35,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
     setName('');
     setUnit('');
     setQuantity(0);
+    setPricePerUnit(0);
     setEditingId(null);
     setShowForm(false);
   };
@@ -43,7 +48,12 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
     }
 
     try {
-      const data = { name: name.trim(), unit: unit.trim(), quantity: Number(quantity) };
+      const data = { 
+        name: name.trim(), 
+        unit: unit.trim(), 
+        quantity: Number(quantity),
+        pricePerUnit: Number(pricePerUnit)
+      };
       
       if (editingId) {
         await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'inventory', editingId), data);
@@ -59,6 +69,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
     }
   };
 
+  // ... handleDelete ...
   const handleDelete = async (id: string, name: string) => {
     fireAlert('ยืนยัน', `ต้องการลบ ${name} หรือไม่?`, 'warning', async () => {
       try {
@@ -84,20 +95,29 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 animate-fade-in-up">
            <h3 className="font-bold text-lg mb-4 text-gray-800">{editingId ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}</h3>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div className="md:col-span-2">
                  <label className="block text-sm font-bold text-gray-700 mb-1">ชื่ออุปกรณ์</label>
                  <input type="text" className="w-full border rounded-lg px-3 py-2" value={name} onChange={e => setName(e.target.value)} placeholder="เช่น ปากกาไวท์บอร์ด" />
               </div>
               <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1">หน่วยนับ</label>
-                 <input type="text" className="w-full border rounded-lg px-3 py-2" value={unit} onChange={e => setUnit(e.target.value)} placeholder="เช่น ด้าม, แท่ง" />
+                 <input type="text" className="w-full border rounded-lg px-3 py-2" value={unit} onChange={e => setUnit(e.target.value)} placeholder="เช่น ด้าม, แท่ง, ก้อน" />
+              </div>
+              <div>
+                 <label className="block text-sm font-bold text-gray-700 mb-1">ราคา/หน่วย (บาท)</label>
+                 <input type="number" min="0" step="0.01" className="w-full border rounded-lg px-3 py-2" value={pricePerUnit} onChange={e => setPricePerUnit(parseFloat(e.target.value) || 0)} placeholder="0.00" />
               </div>
               <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1">จำนวนคงเหลือ</label>
                  <input type="number" min="0" className="w-full border rounded-lg px-3 py-2" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 0)} />
               </div>
            </div>
+           
+           <div className="text-sm text-gray-500 mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              💡 <b>Tip:</b> ควรกำหนดหน่วยเป็นหน่วยย่อยที่สุด (เช่น "ก้อน" แทนที่จะเป็นแพ็ค) เพื่อให้การตัดสต็อกแม่นยำ
+           </div>
+
            <div className="flex justify-end gap-2">
               <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-500 hover:text-gray-700 bg-gray-100 rounded-lg flex items-center gap-1"><X size={18} /> ยกเลิก</button>
               <button type="submit" className="px-4 py-2 bg-[#66FF00] text-black font-bold rounded-lg hover:bg-[#5ce600] flex items-center gap-1"><Save size={18} /> บันทึก</button>
@@ -111,7 +131,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
             <thead className="bg-gray-50 text-gray-700 uppercase font-semibold text-xs">
               <tr>
                 <th className="px-6 py-3">ชื่ออุปกรณ์</th>
-                <th className="px-6 py-3 text-center">จำนวนคงเหลือ</th>
+                <th className="px-6 py-3 text-right">ราคา/หน่วย</th>
+                <th className="px-6 py-3 text-center">คงเหลือ</th>
                 <th className="px-6 py-3 text-center">หน่วยนับ</th>
                 <th className="px-6 py-3 text-right">จัดการ</th>
               </tr>
@@ -120,6 +141,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
                {inventory.map(item => (
                  <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-bold text-gray-800">{item.name}</td>
+                    <td className="px-6 py-4 text-right">{item.pricePerUnit ? item.pricePerUnit.toLocaleString() : '-'} ฿</td>
                     <td className={`px-6 py-4 text-center font-mono font-bold ${item.quantity === 0 ? 'text-red-500' : 'text-green-600'}`}>{item.quantity}</td>
                     <td className="px-6 py-4 text-center">{item.unit}</td>
                     <td className="px-6 py-4 text-right">
@@ -130,7 +152,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
                     </td>
                  </tr>
                ))}
-               {inventory.length === 0 && <tr><td colSpan={4} className="text-center py-8 text-gray-400">ไม่มีข้อมูลในสต็อก</td></tr>}
+               {inventory.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">ไม่มีข้อมูลในสต็อก</td></tr>}
             </tbody>
           </table>
         </div>
