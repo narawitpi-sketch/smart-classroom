@@ -94,7 +94,7 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">รายการอุปกรณ์ที่ใช้</label>
             <div className="space-y-2 mb-2">
-               {selectedItems.map((item, index) => (
+               {selectedItems.map((item) => (
                  <div key={item.id} className="flex gap-2 items-center">
                     <select 
                         className="flex-1 px-3 py-2 border rounded-lg bg-white"
