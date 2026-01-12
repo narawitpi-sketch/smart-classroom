@@ -42,6 +42,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
   // Direct Repair State
   const [showDirectRepairModal, setShowDirectRepairModal] = useState(false);
   const [directRoom, setDirectRoom] = useState('');
+  const [isCustomRoom, setIsCustomRoom] = useState(false);
   const [directProblem, setDirectProblem] = useState('');
 
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
@@ -79,6 +80,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
        // Close Direct Modal
        setShowDirectRepairModal(false);
        setDirectRoom('');
+       setIsCustomRoom(false);
        setDirectProblem('');
 
        // Immediately open Maintenance Modal for this new issue
@@ -331,12 +333,14 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                      <label className="block text-sm font-bold text-gray-700 mb-1">ห้อง / สถานที่</label>
                      <select 
                         className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none bg-white mb-2" 
-                        value={rooms.some(r => r.name === directRoom) ? directRoom : (directRoom ? 'other' : '')} 
+                        value={isCustomRoom ? 'other' : directRoom} 
                         onChange={e => {
                            const val = e.target.value;
                            if (val === 'other') {
+                              setIsCustomRoom(true);
                               setDirectRoom('');
                            } else {
+                              setIsCustomRoom(false);
                               setDirectRoom(val);
                            }
                         }}
@@ -346,14 +350,15 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                         <option value="other">อื่นๆ (ระบุเอง)</option>
                      </select>
                      
-                     {/* Show input if 'other' (implicitly not in list) */}
-                     {(!rooms.some(r => r.name === directRoom)) && (
+                     {/* Show input ONLY if isCustomRoom is true */}
+                     {isCustomRoom && (
                         <input 
                             type="text" 
-                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none animate-fade-in" 
                             placeholder="ระบุสถานที่..." 
                             value={directRoom} 
                             onChange={e => setDirectRoom(e.target.value)} 
+                            autoFocus
                         />
                      )}
                   </div>
