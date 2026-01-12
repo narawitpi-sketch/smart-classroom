@@ -327,10 +327,36 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                  <button onClick={() => setShowDirectRepairModal(false)} className="text-gray-400 hover:text-gray-600"><Trash2 className="rotate-45" size={20} /></button>
               </div>
               <form onSubmit={handleDirectRepairSubmit} className="p-6 space-y-4">
-                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">ห้อง / สถานที่</label>
-                    <input type="text" required className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none" placeholder="เช่น 1301 หรือ สำนักงาน" value={directRoom} onChange={e => setDirectRoom(e.target.value)} />
-                 </div>
+                  <div>
+                     <label className="block text-sm font-bold text-gray-700 mb-1">ห้อง / สถานที่</label>
+                     <select 
+                        className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none bg-white mb-2" 
+                        value={rooms.some(r => r.name === directRoom) ? directRoom : (directRoom ? 'other' : '')} 
+                        onChange={e => {
+                           const val = e.target.value;
+                           if (val === 'other') {
+                              setDirectRoom('');
+                           } else {
+                              setDirectRoom(val);
+                           }
+                        }}
+                     >
+                        <option value="">-- เลือกห้อง --</option>
+                        {rooms.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                        <option value="other">อื่นๆ (ระบุเอง)</option>
+                     </select>
+                     
+                     {/* Show input if 'other' (implicitly not in list) */}
+                     {(!rooms.some(r => r.name === directRoom)) && (
+                        <input 
+                            type="text" 
+                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none" 
+                            placeholder="ระบุสถานที่..." 
+                            value={directRoom} 
+                            onChange={e => setDirectRoom(e.target.value)} 
+                        />
+                     )}
+                  </div>
                  <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">สิ่งที่ซ่อม / เบิก</label>
                     <input type="text" required className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none" placeholder="เช่น เปลี่ยนถ่านไมค์, เบิกสาย LAN" value={directProblem} onChange={e => setDirectProblem(e.target.value)} />
