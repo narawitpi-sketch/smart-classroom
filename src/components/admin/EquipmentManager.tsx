@@ -10,9 +10,10 @@ import type { EquipmentItem } from '../../types';
 interface EquipmentManagerProps {
   inventory: EquipmentItem[];
   fireAlert: (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: (value?: any) => void, showCancel?: boolean, input?: string) => void;
+  totalUsedBudget: number;
 }
 
-const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAlert }) => {
+const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAlert, totalUsedBudget }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -115,6 +116,16 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
                 <Edit size={18} className="rotate-90" /> Export CSV
             </button>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border flex items-center justify-between">
+          <div>
+              <h3 className="text-gray-500 font-medium mb-1">งบประมาณที่ใช้ไปรวม (อุปกรณ์ที่เบิกซ่อม)</h3>
+              <p className="text-3xl font-bold text-red-500">{totalUsedBudget.toLocaleString()} ฿</p>
+          </div>
+          <div className="text-right text-xs text-gray-400">
+             คำนวนจาก: (จำนวนที่เบิก x ราคาต้นทุน) ของงานซ่อมที่สำเร็จแล้ว
+          </div>
       </div>
 
       {showForm && (
