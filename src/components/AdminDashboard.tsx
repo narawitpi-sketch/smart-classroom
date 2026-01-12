@@ -88,7 +88,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
          {adminTab === 'rooms' && <RoomManager rooms={rooms} fireAlert={fireAlert} />}
          {adminTab === 'maintenance' && <MaintenanceLog issues={issues} fireAlert={fireAlert} />}
          {adminTab === 'feedbacks' && <FeedbackList feedbacks={feedbacks} fireAlert={fireAlert} />}
-         {adminTab === 'feedbacks' && <FeedbackList feedbacks={feedbacks} fireAlert={fireAlert} />}
          {adminTab === 'inventory' && <EquipmentManager inventory={inventory} fireAlert={fireAlert} totalUsedBudget={statsData.totalBudget} />}
       </main>
     </div>
