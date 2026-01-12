@@ -11,7 +11,7 @@ import { updateDoc, deleteDoc, doc, runTransaction, increment, addDoc, collectio
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { APP_ID, CATEGORIES } from '../../config/constants';
-import type { Issue, Status, EquipmentItem, UsedEquipment } from '../../types';
+import type { Issue, Status, EquipmentItem, UsedEquipment, Room } from '../../types';
 import { getReporterLabel, formatDate } from '../../utils/helpers';
 import StatusBadge from '../StatusBadge';
 import MaintenanceModal from '../MaintenanceModal';
@@ -20,9 +20,10 @@ interface IssueListProps {
   issues: Issue[];
   fireAlert: (title: string, text: string, icon: 'success'|'error'|'warning', onConfirm?: (value?: any) => void, showCancel?: boolean, input?: string) => void;
   inventory: EquipmentItem[];
+  rooms: Room[];
 }
 
-const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory }) => {
+const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, rooms }) => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterReporterType, setFilterReporterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
