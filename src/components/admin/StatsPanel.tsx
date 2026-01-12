@@ -14,7 +14,7 @@ interface StatsPanelProps {
 
 const StatsPanel: React.FC<StatsPanelProps> = ({ statsData }) => {
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6 animate-fade-in">
        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BarChart3 /> สรุปสถิติ</h1>
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <SimpleBarChart title="ยอดแจ้งรายวัน (7 วัน)" data={statsData.daily} />

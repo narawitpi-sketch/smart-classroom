@@ -34,7 +34,7 @@ const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ issues, fireAlert }) =>
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6 animate-fade-in">
        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ClipboardList /> สรุปรายการซ่อม (Maintenance Log)</h1>
           <button onClick={handleExportMaintenanceCSV} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>

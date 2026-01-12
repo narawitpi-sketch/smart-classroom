@@ -103,7 +103,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Package /> จัดการสต็อกอุปกรณ์ (Inventory)</h1>
         <div className="flex gap-2">

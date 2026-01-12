@@ -56,7 +56,7 @@ const FeedbackList: React.FC<FeedbackListProps> = ({ feedbacks, fireAlert }) => 
   }, [feedbacks]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ClipboardCheck /> ผลประเมินความพึงพอใจ</h1>
         <button onClick={handleExportFeedbackCSV} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition"><Download size={16} /> ดาวน์โหลด (CSV)</button>
