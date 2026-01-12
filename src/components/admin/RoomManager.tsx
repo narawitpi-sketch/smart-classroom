@@ -43,13 +43,13 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, fireAlert }) => {
     const qrContent = document.getElementById('qr-code-wrapper')?.innerHTML;
     if (!qrContent) return;
 
-    const printWindow = window.open('', '', 'width=800,height=800');
+const printWindow = window.open('', '', 'width=800,height=800');
     if (printWindow) {
         printWindow.document.write(`
           <html>
             <head>
               <title>Print QR - Room ${activeQRRoom?.name}</title>
-              <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+              <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;500;700&display=swap" rel="stylesheet">
               <style>
                 body {
                   margin: 0;
@@ -58,89 +58,142 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, fireAlert }) => {
                   justify-content: center;
                   align-items: center;
                   min-height: 100vh;
-                  font-family: 'Sarabun', sans-serif;
-                  background: white;
+                  font-family: 'Prompt', sans-serif;
+                  background-color: #f7f9fc;
+                  /* Optional: Dot pattern background for print preview context */
+                  background-image: radial-gradient(#dee2e6 1px, transparent 1px);
+                  background-size: 20px 20px;
                 }
                 .card {
-                  border: 3px solid #000;
-                  width: 350px;
-                  padding: 40px;
+                  background: white;
+                  width: 380px;
+                  border-radius: 24px;
+                  overflow: hidden;
+                  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+                  border: 2px solid #eee;
+                  position: relative;
                   text-align: center;
+                }
+                .card-header {
+                  background: linear-gradient(135deg, #66FF00 0%, #4ae000 100%);
+                  padding: 30px 20px;
+                  color: #000;
                   position: relative;
                 }
-                .card::before {
+                /* Decorative circles */
+                .card-header::before {
                     content: '';
                     position: absolute;
-                    top: 4px; left: 4px; right: 4px; bottom: 4px;
-                    border: 1px solid #000;
-                    pointer-events: none;
+                    top: -20px; right: -20px;
+                    width: 80px; height: 80px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 50%;
                 }
-                .header-th {
-                  font-size: 1.4rem;
-                  font-weight: bold;
-                  margin-bottom: 5px;
+                .card-header::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 10px; left: 10px;
+                    width: 40px; height: 40px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 50%;
                 }
-                .header-en {
-                  font-size: 0.9rem;
+                .app-name {
+                  font-size: 1.2rem;
+                  font-weight: 700;
+                  letter-spacing: 0.5px;
+                  margin-bottom: 4px;
+                }
+                .app-subtitle-en {
+                  font-size: 0.75rem;
+                  text-transform: uppercase;
+                  letter-spacing: 1.5px;
+                  opacity: 0.8;
+                  font-weight: 500;
+                }
+                .card-body {
+                  padding: 40px 30px;
+                }
+                .room-badge {
+                  display: inline-block;
+                  background: #f0f2f5;
+                  color: #555;
+                  font-size: 0.8rem;
+                  font-weight: 700;
+                  padding: 6px 16px;
+                  border-radius: 20px;
+                  margin-bottom: 10px;
                   text-transform: uppercase;
                   letter-spacing: 1px;
-                  margin-bottom: 30px;
-                  color: #333;
-                }
-                .room-title {
-                    font-size: 1rem;
-                    color: #555;
-                    text-transform: uppercase;
-                    letter-spacing: 2px;
                 }
                 .room-number {
-                  font-size: 4.5rem;
-                  font-weight: bold;
+                  font-size: 5rem;
+                  font-weight: 700;
                   line-height: 1;
-                  margin: 10px 0 30px 0;
+                  color: #1a1a1a;
+                  margin-bottom: 25px;
+                  /* Text Shadow for pop */
+                  text-shadow: 2px 2px 0px rgba(102, 255, 0, 0.2);
                 }
-                .qr-box {
-                  padding: 10px;
-                  display: inline-block;
+                .qr-container {
+                   background: white;
+                   padding: 15px;
+                   border-radius: 20px;
+                   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+                   display: inline-block;
+                   border: 2px dashed #e0e0e0;
                 }
-                .instruction {
-                  margin-top: 30px;
-                  font-size: 1.2rem;
-                  font-weight: bold;
+                .scan-text {
+                   margin-top: 30px;
+                   font-size: 1.3rem;
+                   font-weight: 700;
+                   color: #000;
                 }
-                .sub-instruction {
-                  font-size: 0.9rem;
-                  color: #666;
-                  margin-top: 4px;
+                .scan-subtext {
+                   color: #888;
+                   font-size: 0.9rem;
+                   font-weight: 500;
+                   margin-top: 4px;
                 }
-                .footer {
-                    margin-top: 40px;
-                    border-top: 1px solid #ddd;
-                    padding-top: 10px;
-                    font-size: 0.8rem;
-                    color: #888;
-                }
+                .card-footer {
+                   background: #fafafa;
+                   padding: 15px;
+                   font-size: 0.75rem;
+                   color: #999;
+                   border-top: 1px solid #eee;
+                   font-weight: 500;
+                } 
                 @media print {
-                  body { -webkit-print-color-adjust: exact; }
+                  body { 
+                    background: none; 
+                    -webkit-print-color-adjust: exact; 
+                  }
+                  .card {
+                    box-shadow: none;
+                    border: 2px solid #ddd;
+                  }
                 }
               </style>
             </head>
             <body>
               <div class="card">
-                <div class="header-th">ระบบแจ้งซ่อมห้องเรียนอัจฉริยะ</div>
-                <div class="header-en">Smart Classroom Service</div>
-                
-                <div class="room-title">ROOM</div>
-                <div class="room-number">${activeQRRoom?.name}</div>
-                
-                <div class="qr-box">
-                  ${qrContent}
+                <div class="card-header">
+                   <div class="app-name">แจ้งซ่อมห้องเรียนอัจฉริยะ</div>
+                   <div class="app-subtitle-en">Smart Classroom Service</div>
                 </div>
                 
-                <div class="instruction">สแกนเพื่อแจ้งซ่อม</div>
-                <div class="sub-instruction">Scan to Report Issue</div>
+                <div class="card-body">
+                   <div class="room-badge">ROOM</div>
+                   <div class="room-number">${activeQRRoom?.name}</div>
+                   
+                   <div class="qr-container">
+                      ${qrContent}
+                   </div>
 
-                <div class="footer">
+                   <div class="scan-text">สแกนเพื่อแจ้งซ่อม</div>
+                   <div class="scan-subtext">Scan QR to Report Issue</div>
+                </div>
+
+                <div class="card-footer">
                     งานประชาสัมพันธ์ (หน่วยโสตทัศนูปกรณ์)
                 </div>
               </div>
