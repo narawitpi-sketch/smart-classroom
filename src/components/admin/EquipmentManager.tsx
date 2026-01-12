@@ -70,6 +70,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
   };
 
   // ... handleDelete ...
+  // ... handleDelete ...
   const handleDelete = async (id: string, name: string) => {
     fireAlert('ยืนยัน', `ต้องการลบ ${name} หรือไม่?`, 'warning', async () => {
       try {
@@ -81,15 +82,39 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ inventory, fireAler
     }, true);
   };
 
+  const handleExportCSV = () => {
+    if (!inventory.length) return;
+    const header = "\uFEFFชื่ออุปกรณ์,จำนวนคงเหลือ,หน่วยนับ,ราคาต่อหน่วย (บาท),มูลค่ารวม (บาท)\n"; // BOM for Excel
+    const rows = inventory.map(item => {
+        const totalValue = (item.quantity * (item.pricePerUnit || 0));
+        return `"${item.name}",${item.quantity},"${item.unit}",${item.pricePerUnit || 0},${totalValue}`;
+    }).join("\n");
+
+    const csvContent = header + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `inventory_export_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Package /> จัดการสต็อกอุปกรณ์ (Inventory)</h1>
-        {!showForm && (
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition">
-            <Plus size={20} /> เพิ่มรายการใหม่
-          </button>
-        )}
+        <div className="flex gap-2">
+            {!showForm && (
+            <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold px-4 py-2 rounded-lg transition">
+                <Plus size={20} /> เพิ่มรายการใหม่
+            </button>
+            )}
+            <button onClick={handleExportCSV} className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-lg transition">
+                <Edit size={18} className="rotate-90" /> Export CSV
+            </button>
+        </div>
       </div>
 
       {showForm && (

@@ -48,7 +48,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, issues, rooms, fe
     });
     const fmt = (o: any) => Object.entries(o).map(([label, value]: any) => ({ label, value }));
     const sortedDaily = fmt(stats.daily).slice(0, 7); 
-    return { daily: sortedDaily, monthly: fmt(stats.monthly), yearly: fmt(stats.yearly), byCategory: fmt(stats.byCategory), byReporter: fmt(stats.byReporter) };
+    
+    // Calculate Total Budget
+    const totalBudget = issues.reduce((sum, issue) => {
+        if (issue.usedItems) {
+            const issueCost = issue.usedItems.reduce((s, item) => s + (item.quantity * item.pricePerUnit), 0);
+            return sum + issueCost;
+        }
+        return sum;
+    }, 0);
+
+    return { daily: sortedDaily, monthly: fmt(stats.monthly), yearly: fmt(stats.yearly), byCategory: fmt(stats.byCategory), byReporter: fmt(stats.byReporter), totalBudget };
   }, [issues]);
 
   return (

@@ -40,6 +40,7 @@ export interface Issue {
   solver?: string;
   solution?: string;
   equipment?: string;
+  usedItems?: UsedEquipment[];
 }
 
 export interface Room {

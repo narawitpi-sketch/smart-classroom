@@ -107,7 +107,8 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory }) =
             resolveTimestamp: new Date(),
             solver: data.solver,
             solution: data.solution,
-            equipment: data.equipment
+            equipment: data.equipment,
+            usedItems: usedItems // Save structured data for budget calc
           });
 
           // 3. Deduct Stock
