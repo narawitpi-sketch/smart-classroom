@@ -141,7 +141,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, fireAlert }) => {
                 <div class="sub-instruction">Scan to Report Issue</div>
 
                 <div class="footer">
-                    NSRU Information Technology
+                    งานประชาสัมพันธ์ (หน่วยโสตทัศนูปกรณ์)
                 </div>
               </div>
             </body>
