@@ -43,21 +43,117 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, fireAlert }) => {
     const qrContent = document.getElementById('qr-code-wrapper')?.innerHTML;
     if (!qrContent) return;
 
-    const printWindow = window.open('', '', 'width=600,height=600');
+    const printWindow = window.open('', '', 'width=800,height=800');
     if (printWindow) {
-        printWindow.document.write('<html><head><title>Print QR</title></head><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">');
-        printWindow.document.write(`<h1 style="font-size:3rem;margin-bottom:1rem;">Room ${activeQRRoom?.name}</h1>`);
-        printWindow.document.write(qrContent);
-        printWindow.document.write('<p style="margin-top:1rem;color:#666;">Scan to Report Issue</p>');
-        printWindow.document.write('</body></html>');
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Print QR - Room ${activeQRRoom?.name}</title>
+              <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+              <style>
+                body {
+                  margin: 0;
+                  padding: 0;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  min-height: 100vh;
+                  font-family: 'Sarabun', sans-serif;
+                  background: white;
+                }
+                .card {
+                  border: 3px solid #000;
+                  width: 350px;
+                  padding: 40px;
+                  text-align: center;
+                  position: relative;
+                }
+                .card::before {
+                    content: '';
+                    position: absolute;
+                    top: 4px; left: 4px; right: 4px; bottom: 4px;
+                    border: 1px solid #000;
+                    pointer-events: none;
+                }
+                .header-th {
+                  font-size: 1.4rem;
+                  font-weight: bold;
+                  margin-bottom: 5px;
+                }
+                .header-en {
+                  font-size: 0.9rem;
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                  margin-bottom: 30px;
+                  color: #333;
+                }
+                .room-title {
+                    font-size: 1rem;
+                    color: #555;
+                    text-transform: uppercase;
+                    letter-spacing: 2px;
+                }
+                .room-number {
+                  font-size: 4.5rem;
+                  font-weight: bold;
+                  line-height: 1;
+                  margin: 10px 0 30px 0;
+                }
+                .qr-box {
+                  padding: 10px;
+                  display: inline-block;
+                }
+                .instruction {
+                  margin-top: 30px;
+                  font-size: 1.2rem;
+                  font-weight: bold;
+                }
+                .sub-instruction {
+                  font-size: 0.9rem;
+                  color: #666;
+                  margin-top: 4px;
+                }
+                .footer {
+                    margin-top: 40px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                    font-size: 0.8rem;
+                    color: #888;
+                }
+                @media print {
+                  body { -webkit-print-color-adjust: exact; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="header-th">ระบบแจ้งซ่อมห้องเรียนอัจฉริยะ</div>
+                <div class="header-en">Smart Classroom Service</div>
+                
+                <div class="room-title">ROOM</div>
+                <div class="room-number">${activeQRRoom?.name}</div>
+                
+                <div class="qr-box">
+                  ${qrContent}
+                </div>
+                
+                <div class="instruction">สแกนเพื่อแจ้งซ่อม</div>
+                <div class="sub-instruction">Scan to Report Issue</div>
+
+                <div class="footer">
+                    NSRU Information Technology
+                </div>
+              </div>
+            </body>
+            <script>
+               setTimeout(() => {
+                  window.print();
+                  window.close();
+               }, 1000);
+            </script>
+          </html>
+        `);
         printWindow.document.close();
-        
-        // Wait for content to render
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-            printWindow.close();
-        }, 500);
     }
   };
 
