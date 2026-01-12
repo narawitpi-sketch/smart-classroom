@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   Wrench,
@@ -7,7 +7,7 @@ import {
   Image as ImageIcon,
   Download
 } from 'lucide-react';
-import { updateDoc, deleteDoc, doc, runTransaction, increment, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { updateDoc, deleteDoc, doc, runTransaction, increment } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { APP_ID, CATEGORIES } from '../../config/constants';
@@ -15,6 +15,7 @@ import type { Issue, Status, EquipmentItem, UsedEquipment, Room } from '../../ty
 import { getReporterLabel, formatDate } from '../../utils/helpers';
 import StatusBadge from '../StatusBadge';
 import MaintenanceModal from '../MaintenanceModal';
+import DirectRepairModal from './DirectRepairModal';
 
 interface IssueListProps {
   issues: Issue[];
@@ -35,15 +36,23 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
   const [exportCategory, setExportCategory] = useState('all');
   const [exportReporterType, setExportReporterType] = useState('all');
 
-  // Maintenance Modal State
+  // Modal States
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
-
-  // Direct Repair State
   const [showDirectRepairModal, setShowDirectRepairModal] = useState(false);
-  const [directRoom, setDirectRoom] = useState('');
-  const [isCustomRoom, setIsCustomRoom] = useState(false);
-  const [directProblem, setDirectProblem] = useState('');
+
+  // useMemo for filtering and sorting
+  const filteredAndSortedIssues = useMemo(() => {
+    return issues.filter(issue => {
+        const matchesSearch = 
+            issue.room.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            issue.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            issue.reporter.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = filterCategory === 'all' || issue.category === filterCategory;
+        const matchesReporter = filterReporterType === 'all' || issue.reporterType === filterReporterType;
+        return matchesSearch && matchesCategory && matchesReporter;
+    }).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+  }, [issues, searchTerm, filterCategory, filterReporterType]);
 
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
@@ -59,66 +68,26 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
     } catch (error) { console.error(error); }
   };
 
-  const handleDirectRepairSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!directRoom.trim() || !directProblem.trim()) return;
-
-    try {
-       // Create a new "Self-Reported" issue
-       const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'issues'), {
-          description: directProblem.trim(), 
-          room: directRoom.trim(),
-          reporter: 'Admin', 
-          reporterType: 'admin', 
-          status: 'in-progress', 
-          timestamp: serverTimestamp(),
-          category: 'other',
-          imageUrl: null,
-          imagePath: null
-       });
-       
-       // Close Direct Modal
-       setShowDirectRepairModal(false);
-       setDirectRoom('');
-       setIsCustomRoom(false);
-       setDirectProblem('');
-
-       // Immediately open Maintenance Modal for this new issue
-       setSelectedIssueId(docRef.id);
-       setShowMaintenanceModal(true);
-       
-    } catch (error) {
-       console.error(error);
-       fireAlert('ผิดพลาด', 'สร้างรายการไม่สำเร็จ', 'error');
-    }
-  };
-
-
   const handleMaintenanceSubmit = async (data: { solver: string; solution: string; equipment: string }, usedItems: UsedEquipment[]) => {
     if (!selectedIssueId) return;
     
     try {
       await runTransaction(db, async (transaction) => {
-          // 1. Get current inventory items to check stock (optional, but good for safety)
-          // For now, we trust the UI but we should process the decrements.
-          
           const issueRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', selectedIssueId);
-          
-          // 2. Update Issue
+          // Update Issue
           transaction.update(issueRef, { 
             status: 'completed',
             resolveTimestamp: new Date(),
             solver: data.solver,
             solution: data.solution,
             equipment: data.equipment,
-            usedItems: usedItems // Save structured data for budget calc
+            usedItems: usedItems
           });
 
-          // 3. Deduct Stock
+          // Deduct Stock
           for (const item of usedItems) {
              if (item.inventoryId) {
                 const itemRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'inventory', item.inventoryId);
-                // Use increment(-qty) for atomic decrement
                 transaction.update(itemRef, { quantity: increment(-item.quantity) });
              }
           }
@@ -254,14 +223,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                     </tr>
                    </thead>
                    <tbody className="divide-y divide-gray-100">
-                      {/* ... map issues ... */}
-                      {/* Insert your filtering logic here normally provided by 'filteredIssues' variable in original code */}
-                      {issues.filter(issue => {
-                          const matchesSearch = issue.room.toLowerCase().includes(searchTerm.toLowerCase()) || issue.description.toLowerCase().includes(searchTerm.toLowerCase()) || issue.reporter.toLowerCase().includes(searchTerm.toLowerCase());
-                          const matchesCategory = filterCategory === 'all' || issue.category === filterCategory;
-                          const matchesReporter = filterReporterType === 'all' || issue.reporterType === filterReporterType;
-                          return matchesSearch && matchesCategory && matchesReporter;
-                      }).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)).map(issue => (
+                      {filteredAndSortedIssues.map(issue => (
                           <tr key={issue.docId} className="hover:bg-gray-50 transition">
                              <td className="px-4 py-4"><StatusBadge status={issue.status} /></td>
                              <td className="px-4 py-4 text-xs">
@@ -300,12 +262,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                              </td>
                           </tr>
                       ))}
-                     {issues.filter(issue => {
-                          const matchesSearch = issue.room.toLowerCase().includes(searchTerm.toLowerCase()) || issue.description.toLowerCase().includes(searchTerm.toLowerCase()) || issue.reporter.toLowerCase().includes(searchTerm.toLowerCase());
-                          const matchesCategory = filterCategory === 'all' || issue.category === filterCategory;
-                          const matchesReporter = filterReporterType === 'all' || issue.reporterType === filterReporterType;
-                          return matchesSearch && matchesCategory && matchesReporter;
-                      }).length === 0 && <tr><td colSpan={5} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>}
+                     {filteredAndSortedIssues.length === 0 && <tr><td colSpan={5} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td></tr>}
                    </tbody>
                 </table>
              </div>
@@ -321,88 +278,16 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
       />
 
       {/* Direct Repair Modal */}
-      {showDirectRepairModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-              <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
-                 <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Wrench className="text-[#66FF00]" size={20} /> บันทึกซ่อมเอง / เบิกของ</h3>
-                 <button onClick={() => setShowDirectRepairModal(false)} className="text-gray-400 hover:text-gray-600"><Trash2 className="rotate-45" size={20} /></button>
-              </div>
-              <form onSubmit={handleDirectRepairSubmit} className="p-6 space-y-4">
-                  <div>
-                     <label className="block text-sm font-bold text-gray-700 mb-1">ห้อง / สถานที่</label>
-                     <select 
-                        className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none bg-white mb-2" 
-                        value={isCustomRoom ? 'other' : directRoom} 
-                        onChange={e => {
-                           const val = e.target.value;
-                           if (val === 'other') {
-                              setIsCustomRoom(true);
-                              setDirectRoom('');
-                           } else {
-                              setIsCustomRoom(false);
-                              setDirectRoom(val);
-                           }
-                        }}
-                     >
-                        <option value="">-- เลือกห้อง --</option>
-                        {rooms.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                        <option value="other">อื่นๆ (ระบุเอง)</option>
-                     </select>
-                     
-                     {/* Show input ONLY if isCustomRoom is true */}
-                     {isCustomRoom && (
-                        <input 
-                            type="text" 
-                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none animate-fade-in" 
-                            placeholder="ระบุสถานที่..." 
-                            value={directRoom} 
-                            onChange={e => setDirectRoom(e.target.value)} 
-                            autoFocus
-                        />
-                     )}
-                  </div>
-                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">สิ่งที่ซ่อม / เบิก</label>
-                    <input type="text" required className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#66FF00] outline-none" placeholder="เช่น เปลี่ยนถ่านไมค์, เบิกสาย LAN" value={directProblem} onChange={e => setDirectProblem(e.target.value)} />
-                 </div>
-                 <button type="submit" className="w-full bg-[#66FF00] hover:bg-[#5ce600] text-black font-bold py-3 rounded-xl shadow-md transition mt-2">
-                    ต่อไป (เลือกอุปกรณ์)
-                 </button>
-              </form>
-           </div>
-        </div>
-      )}
-
-      {/* Export Modal (reused from previous code or place here) */}
-      {showExportModal && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
-                 <button onClick={() => setShowExportModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Trash2 className="rotate-45" size={20} /></button>
-                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Download size={20} className="text-[#66FF00]" /> Export CSV</h3>
-                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 mb-1 block">จากวันที่</label>
-                            <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 mb-1 block">ถึงวันที่</label>
-                            <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} />
-                        </div>
-                    </div>
-                     <div>
-                        <label className="text-xs font-bold text-gray-500 mb-1 block">ประเภท</label>
-                        <select className="w-full border rounded-lg px-3 py-2 text-sm bg-white" value={exportCategory} onChange={e => setExportCategory(e.target.value)}>
-                            <option value="all">ทั้งหมด</option>
-                            {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                        </select>
-                     </div>
-                     <button onClick={handleExportCSV} className="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition">ดาวน์โหลดรายงาน</button>
-                 </div>
-             </div>
-         </div>
-      )}
+      <DirectRepairModal
+         isOpen={showDirectRepairModal}
+         onClose={() => setShowDirectRepairModal(false)}
+         rooms={rooms}
+         fireAlert={fireAlert}
+         onSuccess={(newIssueId) => {
+             setSelectedIssueId(newIssueId);
+             setShowMaintenanceModal(true);
+         }}
+      />
     </>
   );
 };
