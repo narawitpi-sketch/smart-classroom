@@ -27,6 +27,8 @@ interface IssueListProps {
 const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, rooms }) => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterReporterType, setFilterReporterType] = useState<string>('all');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Export State
@@ -50,9 +52,28 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
             issue.reporter.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = filterCategory === 'all' || issue.category === filterCategory;
         const matchesReporter = filterReporterType === 'all' || issue.reporterType === filterReporterType;
-        return matchesSearch && matchesCategory && matchesReporter;
+        
+        // Date Filter
+        let matchesDate = true;
+        if (issue.timestamp) {
+           const issueDate = new Date(issue.timestamp.seconds * 1000);
+           issueDate.setHours(0,0,0,0);
+
+           if (filterStartDate) {
+              const start = new Date(filterStartDate);
+              start.setHours(0,0,0,0);
+              if (issueDate < start) matchesDate = false;
+           }
+           if (filterEndDate) {
+              const end = new Date(filterEndDate);
+              end.setHours(23,59,59,999);
+              if (issueDate > end) matchesDate = false;
+           }
+        }
+
+        return matchesSearch && matchesCategory && matchesReporter && matchesDate;
     }).sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-  }, [issues, searchTerm, filterCategory, filterReporterType]);
+  }, [issues, searchTerm, filterCategory, filterReporterType, filterStartDate, filterEndDate]);
 
   const handleStatusChange = async (docId: string | undefined, newStatus: Status) => {
     if (!docId) return;
@@ -67,6 +88,7 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
       await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'issues', docId), { status: newStatus });
     } catch (error) { console.error(error); }
   };
+
 
   const handleMaintenanceSubmit = async (data: { solver: string; solution: string; equipment: string }, usedItems: UsedEquipment[]) => {
     if (!selectedIssueId) return;
@@ -198,7 +220,14 @@ const IssueList: React.FC<IssueListProps> = ({ issues, fireAlert, inventory, roo
                 </button>
             </div>
             {/* Filters */}
-            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+               {/* Date Range Filters */}
+               <div className="flex items-center gap-2">
+                 <input type="date" title="เริ่ม" className="border rounded-lg px-2 py-2 text-sm bg-white" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                 <span className="text-gray-400">-</span>
+                 <input type="date" title="ถึง" className="border rounded-lg px-2 py-2 text-sm bg-white" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+               </div>
+               
                <select className="border rounded-lg px-3 py-2 bg-white" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="all">ทุกปัญหา</option>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
                <select className="border rounded-lg px-3 py-2 bg-white" value={filterReporterType} onChange={e => setFilterReporterType(e.target.value)}><option value="all">ทุกคน</option><option value="lecturer">อาจารย์</option><option value="student">นักศึกษา</option><option value="admin">Admin (ซ่อมเอง)</option></select>
                <button onClick={() => setShowExportModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition whitespace-nowrap font-semibold">
