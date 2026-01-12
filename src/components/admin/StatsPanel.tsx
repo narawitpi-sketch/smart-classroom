@@ -8,7 +8,6 @@ interface StatsPanelProps {
     monthly: { label: string; value: number }[];
     yearly: { label: string; value: number }[];
     byCategory: { label: string; value: number }[];
-    byCategory: { label: string; value: number }[];
     byReporter: { label: string; value: number }[];
   };
 }
